@@ -1,5 +1,5 @@
 import { parseExcelData, parsedData } from '../modules/dataParsing.js';
-import { handleImageUpload, displayImagePreview, imageOrientation } from '../modules/imageUpload.js';
+import { handleImageUpload, displayImagePreview, imageOrientation, imageWidth, imageHeight, imageAspectRatio } from '../modules/imageUpload.js';
 import { generatePreviewSlider } from '../modules/uiRendering.js';
 
 // DOM Elements
@@ -11,6 +11,7 @@ const pasteStatus = document.getElementById('paste-status');
 const showTableButton = document.getElementById('show-table');
 const pngUploadInput = document.getElementById('png-upload');
 const generatePreviewButton = document.getElementById('generate-preview');
+const generateTestPreviewButton = document.getElementById('generate-test-preview');
 const certificateDateInput = document.getElementById('certificate-date');
 const todayButton = document.getElementById('today-button');
 const columnSelectionSection = document.getElementById('column-selection');
@@ -49,6 +50,7 @@ pngUploadInput.addEventListener('change', function() {
     }
 });
 generatePreviewButton.addEventListener('click', handleGeneratePreview);
+generateTestPreviewButton.addEventListener('click', handleGenerateTestPreview);
 todayButton.addEventListener('click', handleTodayButtonClick);
 
 // Check if Clipboard API is supported
@@ -154,6 +156,105 @@ function handleTodayButtonClick() {
     setTimeout(() => {
         todayButton.textContent = 'Today';
     }, 1000);
+}
+
+async function handleGenerateTestPreview() {
+    try {
+        // Update button text to show loading
+        generateTestPreviewButton.textContent = 'Loading Test Data...';
+        generateTestPreviewButton.disabled = true;
+        
+        // Step 1: Load sample data
+        handleUseSampleData();
+        
+        // Step 2: Set today's date
+        handleTodayButtonClick();
+        
+        // Step 3: Load test image
+        const response = await fetch('test-files/test-portrait.png');
+        if (!response.ok) {
+            throw new Error(`Failed to fetch test image: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const file = new File([blob], 'test-portrait.png', { type: 'image/png' });
+        
+        // Step 4: Process the image upload
+        updateButtonText('Processing Image...');
+        const base64Data = await handleImageUpload(file);
+        displayImagePreview(base64Data);
+        
+        // Step 5: Set default column concatenation (use some interesting columns)
+        updateButtonText('Configuring Columns...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for UI updates
+        
+        // Auto-select some columns for concatenation
+        if (parsedHeaders.includes('Division') && parsedHeaders.includes('Placement')) {
+            selectedColumns = ['Division', 'Placement'];
+            updateColumnSelectionUI();
+        }
+        
+        // Step 6: Generate preview
+        updateButtonText('Generating Preview...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause
+        
+        handleGeneratePreview();
+        
+        // Reset button
+        updateButtonText('Test Complete!');
+        setTimeout(() => {
+            generateTestPreviewButton.textContent = 'Generate Test Preview';
+            generateTestPreviewButton.disabled = false;
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error generating test preview:', error);
+        generateTestPreviewButton.textContent = 'Error - Try Again';
+        generateTestPreviewButton.disabled = false;
+        
+        // Show error in paste status
+        pasteStatus.innerHTML = `<span class="error">Test preview error: ${error.message}</span>`;
+        
+        setTimeout(() => {
+            generateTestPreviewButton.textContent = 'Generate Test Preview';
+        }, 3000);
+    }
+}
+
+function updateButtonText(text) {
+    generateTestPreviewButton.textContent = text;
+}
+
+function updateColumnSelectionUI() {
+    // Update the visual column selection to reflect the programmatically selected columns
+    const dropZone = document.getElementById('concatenation-drop-zone');
+    const availableColumns = document.getElementById('available-columns');
+    
+    if (!dropZone || !availableColumns) return;
+    
+    selectedColumns.forEach(columnName => {
+        // Find the column in available columns
+        const columnElement = Array.from(availableColumns.children)
+            .find(child => child.dataset.column === columnName);
+        
+        if (columnElement) {
+            // Remove from available columns
+            columnElement.remove();
+            
+            // Add to concatenation zone
+            const newTag = createDraggableColumnTag(columnName);
+            newTag.classList.add('concatenated-column');
+            newTag.addEventListener('dblclick', () => removeConcatenatedColumn(columnName));
+            
+            // Hide placeholder if it exists
+            const placeholder = dropZone.querySelector('.drop-zone-placeholder');
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+            
+            dropZone.appendChild(newTag);
+        }
+    });
 }
 
 function handleDataPaste() {

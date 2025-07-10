@@ -1,6 +1,9 @@
 // Module for handling PNG image upload and base64 conversion
 export let uploadedImage = null;
 export let imageOrientation = 'landscape'; // Default orientation
+export let imageWidth = 0;
+export let imageHeight = 0;
+export let imageAspectRatio = 1.0;
 
 export function handleImageUpload(file) {
     return new Promise((resolve, reject) => {
@@ -8,17 +11,24 @@ export function handleImageUpload(file) {
         reader.onload = (event) => {
             uploadedImage = event.target.result; // Store the uploaded image
             
-            // Detect orientation from image dimensions
+            // Detect orientation and dimensions from image
             detectImageOrientation(event.target.result)
-                .then(orientation => {
-                    imageOrientation = orientation;
+                .then(result => {
+                    imageOrientation = result.orientation;
+                    imageWidth = result.width;
+                    imageHeight = result.height;
+                    imageAspectRatio = result.aspectRatio;
+                    
                     // Update UI to show detected orientation
-                    updateOrientationDisplay(orientation);
+                    updateOrientationDisplay(result.orientation);
                     resolve(event.target.result);
                 })
                 .catch(error => {
                     console.error('Error detecting orientation:', error);
                     imageOrientation = 'landscape'; // Default fallback
+                    imageWidth = 800; // Default fallback
+                    imageHeight = 600; // Default fallback
+                    imageAspectRatio = 800 / 600; // Default fallback
                     resolve(event.target.result);
                 });
         };
@@ -48,8 +58,17 @@ function detectImageOrientation(base64Data) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = function() {
-            const orientation = this.width > this.height ? 'landscape' : 'portrait';
-            resolve(orientation);
+            const width = this.width;
+            const height = this.height;
+            const aspectRatio = width / height;
+            const orientation = width > height ? 'landscape' : 'portrait';
+            
+            resolve({
+                orientation: orientation,
+                width: width,
+                height: height,
+                aspectRatio: aspectRatio
+            });
         };
         img.onerror = function() {
             reject(new Error('Failed to load image for orientation detection'));
