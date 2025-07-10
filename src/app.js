@@ -11,7 +11,8 @@ const pasteStatus = document.getElementById('paste-status');
 const showTableButton = document.getElementById('show-table');
 const pngUploadInput = document.getElementById('png-upload');
 const generatePreviewButton = document.getElementById('generate-preview');
-const generateTestPreviewButton = document.getElementById('generate-test-preview');
+const generateTestPortraitButton = document.getElementById('generate-test-portrait-preview');
+const generateTestLandscapeButton = document.getElementById('generate-test-landscape-preview');
 const certificateDateInput = document.getElementById('certificate-date');
 const todayButton = document.getElementById('today-button');
 const columnSelectionSection = document.getElementById('column-selection');
@@ -50,7 +51,8 @@ pngUploadInput.addEventListener('change', function() {
     }
 });
 generatePreviewButton.addEventListener('click', handleGeneratePreview);
-generateTestPreviewButton.addEventListener('click', handleGenerateTestPreview);
+generateTestPortraitButton.addEventListener('click', handleGenerateTestPortraitPreview);
+generateTestLandscapeButton.addEventListener('click', handleGenerateTestLandscapePreview);
 todayButton.addEventListener('click', handleTodayButtonClick);
 
 // Check if Clipboard API is supported
@@ -158,11 +160,11 @@ function handleTodayButtonClick() {
     }, 1000);
 }
 
-async function handleGenerateTestPreview() {
+async function handleGenerateTestPortraitPreview() {
     try {
         // Update button text to show loading
-        generateTestPreviewButton.textContent = 'Loading Test Data...';
-        generateTestPreviewButton.disabled = true;
+        generateTestPortraitButton.textContent = 'Loading Portrait Test...';
+        generateTestPortraitButton.disabled = true;
         
         // Step 1: Load sample data
         handleUseSampleData();
@@ -170,22 +172,22 @@ async function handleGenerateTestPreview() {
         // Step 2: Set today's date
         handleTodayButtonClick();
         
-        // Step 3: Load test image
+        // Step 3: Load test portrait image
         const response = await fetch('test-files/test-portrait.png');
         if (!response.ok) {
-            throw new Error(`Failed to fetch test image: ${response.status}`);
+            throw new Error(`Failed to fetch test portrait image: ${response.status}`);
         }
         
         const blob = await response.blob();
         const file = new File([blob], 'test-portrait.png', { type: 'image/png' });
         
         // Step 4: Process the image upload
-        updateButtonText('Processing Image...');
+        updatePortraitButtonText('Processing Portrait Image...');
         const base64Data = await handleImageUpload(file);
         displayImagePreview(base64Data);
         
         // Step 5: Set default column concatenation (use some interesting columns)
-        updateButtonText('Configuring Columns...');
+        updatePortraitButtonText('Configuring Columns...');
         await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for UI updates
         
         // Auto-select some columns for concatenation
@@ -195,34 +197,101 @@ async function handleGenerateTestPreview() {
         }
         
         // Step 6: Generate preview
-        updateButtonText('Generating Preview...');
+        updatePortraitButtonText('Generating Portrait Preview...');
         await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause
         
         handleGeneratePreview();
         
         // Reset button
-        updateButtonText('Test Complete!');
+        updatePortraitButtonText('Portrait Test Complete!');
         setTimeout(() => {
-            generateTestPreviewButton.textContent = 'Generate Test Preview';
-            generateTestPreviewButton.disabled = false;
+            generateTestPortraitButton.textContent = 'Test Portrait Preview';
+            generateTestPortraitButton.disabled = false;
         }, 2000);
         
     } catch (error) {
-        console.error('Error generating test preview:', error);
-        generateTestPreviewButton.textContent = 'Error - Try Again';
-        generateTestPreviewButton.disabled = false;
+        console.error('Error generating portrait test preview:', error);
+        generateTestPortraitButton.textContent = 'Portrait Error - Try Again';
+        generateTestPortraitButton.disabled = false;
         
         // Show error in paste status
-        pasteStatus.innerHTML = `<span class="error">Test preview error: ${error.message}</span>`;
+        pasteStatus.innerHTML = `<span class="error">Portrait test error: ${error.message}</span>`;
         
         setTimeout(() => {
-            generateTestPreviewButton.textContent = 'Generate Test Preview';
+            generateTestPortraitButton.textContent = 'Test Portrait Preview';
         }, 3000);
     }
 }
 
-function updateButtonText(text) {
-    generateTestPreviewButton.textContent = text;
+async function handleGenerateTestLandscapePreview() {
+    try {
+        // Update button text to show loading
+        generateTestLandscapeButton.textContent = 'Loading Landscape Test...';
+        generateTestLandscapeButton.disabled = true;
+        
+        // Step 1: Load sample data
+        handleUseSampleData();
+        
+        // Step 2: Set today's date
+        handleTodayButtonClick();
+        
+        // Step 3: Load test landscape image
+        const response = await fetch('test-files/test-landscape.jpg');
+        if (!response.ok) {
+            throw new Error(`Failed to fetch test landscape image: ${response.status}`);
+        }
+        
+        const blob = await response.blob();
+        const file = new File([blob], 'test-landscape.jpg', { type: 'image/jpeg' });
+        
+        // Step 4: Process the image upload
+        updateLandscapeButtonText('Processing Landscape Image...');
+        const base64Data = await handleImageUpload(file);
+        displayImagePreview(base64Data);
+        
+        // Step 5: Set default column concatenation (use some interesting columns)
+        updateLandscapeButtonText('Configuring Columns...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause for UI updates
+        
+        // Auto-select some columns for concatenation
+        if (parsedHeaders.includes('Division') && parsedHeaders.includes('Placement')) {
+            selectedColumns = ['Division', 'Placement'];
+            updateColumnSelectionUI();
+        }
+        
+        // Step 6: Generate preview
+        updateLandscapeButtonText('Generating Landscape Preview...');
+        await new Promise(resolve => setTimeout(resolve, 500)); // Brief pause
+        
+        handleGeneratePreview();
+        
+        // Reset button
+        updateLandscapeButtonText('Landscape Test Complete!');
+        setTimeout(() => {
+            generateTestLandscapeButton.textContent = 'Test Landscape Preview';
+            generateTestLandscapeButton.disabled = false;
+        }, 2000);
+        
+    } catch (error) {
+        console.error('Error generating landscape test preview:', error);
+        generateTestLandscapeButton.textContent = 'Landscape Error - Try Again';
+        generateTestLandscapeButton.disabled = false;
+        
+        // Show error in paste status
+        pasteStatus.innerHTML = `<span class="error">Landscape test error: ${error.message}</span>`;
+        
+        setTimeout(() => {
+            generateTestLandscapeButton.textContent = 'Test Landscape Preview';
+        }, 3000);
+    }
+}
+
+function updatePortraitButtonText(text) {
+    generateTestPortraitButton.textContent = text;
+}
+
+function updateLandscapeButtonText(text) {
+    generateTestLandscapeButton.textContent = text;
 }
 
 function updateColumnSelectionUI() {

@@ -1,4 +1,4 @@
-// Module for handling PNG image upload and base64 conversion
+// Module for handling PNG and JPG image upload and base64 conversion
 export let uploadedImage = null;
 export let imageOrientation = 'landscape'; // Default orientation
 export let imageWidth = 0;
@@ -40,7 +40,7 @@ export function handleImageUpload(file) {
 }
 
 export function validateImageFile(file) {
-    const allowedTypes = ['image/png'];
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
     return allowedTypes.includes(file.type);
 }
 
