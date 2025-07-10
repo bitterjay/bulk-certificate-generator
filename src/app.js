@@ -1,5 +1,5 @@
 import { parseExcelData, parsedData } from '../modules/dataParsing.js';
-import { handleImageUpload, displayImagePreview } from '../modules/imageUpload.js';
+import { handleImageUpload, displayImagePreview, imageOrientation } from '../modules/imageUpload.js';
 import { generatePreviewSlider } from '../modules/uiRendering.js';
 
 // DOM Elements
@@ -12,7 +12,6 @@ const showTableButton = document.getElementById('show-table');
 const pngUploadInput = document.getElementById('png-upload');
 const generatePreviewButton = document.getElementById('generate-preview');
 const certificateDateInput = document.getElementById('certificate-date');
-const certificateOrientationSelect = document.getElementById('certificate-orientation');
 const columnSelectionSection = document.getElementById('column-selection');
 const tableContainer = document.getElementById('table-container');
 
@@ -41,6 +40,8 @@ pngUploadInput.addEventListener('change', function() {
     if (this.files && this.files[0]) {
         handleImageUpload(this.files[0]).then(base64Data => {
             displayImagePreview(base64Data);
+            // Update preview button state after orientation is detected
+            updateGeneratePreviewButton();
         }).catch(error => {
             console.error('Error uploading image:', error);
         });
@@ -458,7 +459,8 @@ function updateGeneratePreviewButton() {
 
 function handleGeneratePreview() {
     const date = certificateDateInput.value;
-    const orientation = certificateOrientationSelect.value;
+    // Use auto-detected orientation from image upload module
+    const orientation = imageOrientation;
 
     // Generate preview slider
     generatePreviewSlider(selectedColumns, date, orientation);

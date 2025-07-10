@@ -262,6 +262,24 @@ body {
     background-color: white;
 }
 
+/* Orientation Display Styles */
+.orientation-display {
+    margin-top: 10px;
+    text-align: center;
+}
+
+.orientation-info {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #e8f5e8;
+    color: #2d6e2d;
+    border: 1px solid #b8e6b8;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 /* Responsive adjustments for drag and drop */
 @media (max-width: 768px) {
     .available-columns,
@@ -285,6 +303,11 @@ body {
     
     #image-preview-container {
         padding: 10px;
+    }
+    
+    .orientation-info {
+        font-size: 13px;
+        padding: 6px 12px;
     }
 }
 
