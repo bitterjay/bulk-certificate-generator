@@ -12,6 +12,7 @@ const showTableButton = document.getElementById('show-table');
 const pngUploadInput = document.getElementById('png-upload');
 const generatePreviewButton = document.getElementById('generate-preview');
 const certificateDateInput = document.getElementById('certificate-date');
+const todayButton = document.getElementById('today-button');
 const columnSelectionSection = document.getElementById('column-selection');
 const tableContainer = document.getElementById('table-container');
 
@@ -48,6 +49,7 @@ pngUploadInput.addEventListener('change', function() {
     }
 });
 generatePreviewButton.addEventListener('click', handleGeneratePreview);
+todayButton.addEventListener('click', handleTodayButtonClick);
 
 // Check if Clipboard API is supported
 function isClipboardAPISupported() {
@@ -136,6 +138,22 @@ function handleUseSampleData() {
     if (isManualPasteMode) {
         hideManualPasteMode();
     }
+}
+
+function handleTodayButtonClick() {
+    const today = new Date();
+    const todayString = today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    
+    certificateDateInput.value = todayString;
+    
+    // Trigger change event to update preview button state
+    certificateDateInput.dispatchEvent(new Event('change'));
+    
+    // Optional: Add visual feedback
+    todayButton.textContent = 'Set!';
+    setTimeout(() => {
+        todayButton.textContent = 'Today';
+    }, 1000);
 }
 
 function handleDataPaste() {
@@ -461,6 +479,9 @@ function handleGeneratePreview() {
     const date = certificateDateInput.value;
     // Use auto-detected orientation from image upload module
     const orientation = imageOrientation;
+
+    // Show the preview area
+    document.getElementById('preview-area').style.display = 'block';
 
     // Generate preview slider
     generatePreviewSlider(selectedColumns, date, orientation);
