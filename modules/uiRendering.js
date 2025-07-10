@@ -1,6 +1,17 @@
 import { parsedData } from './dataParsing.js';
 import { uploadedImage } from './imageUpload.js';
 
+// Helper function to sanitize column names for CSS class usage
+function sanitizeClassName(columnName) {
+    return columnName
+        .toLowerCase()                    // Convert to lowercase
+        .replace(/\s+/g, '-')            // Replace spaces with hyphens
+        .replace(/[^a-zA-Z0-9-_]/g, ''); // Remove invalid characters
+}
+
+// Global variable to store the Swiper instance
+let swiperInstance = null;
+
 export function generatePreviewSlider(selectedColumns, date, orientation) {
     const previewContainer = document.getElementById('preview-container');
     previewContainer.innerHTML = ''; // Clear previous previews
@@ -15,28 +26,91 @@ export function generatePreviewSlider(selectedColumns, date, orientation) {
         previewContainer.appendChild(slide);
     });
 
-    // Initialize unslider after a short delay to ensure DOM is ready
+    // Initialize Swiper
+    initializeSwiper();
+}
+
+function initializeSwiper() {
+    // Destroy existing Swiper instance if it exists
+    if (swiperInstance) {
+        swiperInstance.destroy(true, true);
+        swiperInstance = null;
+    }
+
+    // Wait a brief moment for DOM to be ready
     setTimeout(() => {
-        if (window.$ && window.$.fn.unslider) {
-            $('#preview-slider').unslider({
-                dots: true,
-                fluid: true
-            });
-        } else {
-            console.error('Unslider library not loaded correctly');
+        // Check if Swiper is available
+        if (typeof Swiper === 'undefined') {
+            console.error('Swiper library not loaded');
+            return;
         }
+
+        // Initialize new Swiper instance
+        swiperInstance = new Swiper('#preview-slider', {
+            // Basic settings
+            slidesPerView: 1,
+            spaceBetween: 30,
+            loop: false,
+            centeredSlides: true,
+
+            // Navigation
+            navigation: {
+                nextEl: '.swiper-button-next',
+                prevEl: '.swiper-button-prev',
+            },
+
+            // Pagination
+            pagination: {
+                el: '.swiper-pagination',
+                clickable: true,
+                dynamicBullets: true,
+            },
+
+            // Keyboard control
+            keyboard: {
+                enabled: true,
+            },
+
+            // Touch/swipe settings
+            touchRatio: 1,
+            touchAngle: 45,
+            grabCursor: true,
+
+            // Responsive breakpoints
+            breakpoints: {
+                640: {
+                    slidesPerView: 1,
+                    spaceBetween: 20,
+                },
+                768: {
+                    slidesPerView: 1,
+                    spaceBetween: 30,
+                },
+                1024: {
+                    slidesPerView: 1,
+                    spaceBetween: 40,
+                },
+            },
+
+            // Effects
+            effect: 'slide',
+            speed: 300,
+        });
+
+        console.log('Swiper initialized successfully');
     }, 100);
 }
 
 function createExampleSlide(selectedColumns) {
-    const slide = document.createElement('li');
-    slide.classList.add('example-slide');
+    const slide = document.createElement('div');
+    slide.classList.add('swiper-slide', 'example-slide');
     
     // Create a container for the certificate
     const certificateContainer = document.createElement('div');
     certificateContainer.classList.add('certificate-preview', 'example');
     certificateContainer.style.backgroundImage = `url(${uploadedImage})`;
     certificateContainer.style.backgroundSize = 'cover';
+    certificateContainer.style.backgroundPosition = 'center';
     certificateContainer.style.position = 'relative';
 
     // Create elements with maximum possible content
@@ -46,7 +120,7 @@ function createExampleSlide(selectedColumns) {
     // Create concatenated column element
     if (selectedColumns.length > 0) {
         const concatenatedElement = createTextElement(
-            selectedColumns.map(col => 'Longest ' + col).join(' '), 
+            selectedColumns.map(col => 'Longest ' + col).join(' - '), 
             'concatenated-element'
         );
         certificateContainer.appendChild(concatenatedElement);
@@ -57,17 +131,21 @@ function createExampleSlide(selectedColumns) {
         .filter(col => !selectedColumns.includes(col) && col !== 'Name');
     
     remainingColumns.forEach(col => {
-        const columnElement = createTextElement(`Longest ${col} Content`, col + '-element');
+        const columnElement = createTextElement(`Longest ${col} Content`, sanitizeClassName(col) + '-element');
         certificateContainer.appendChild(columnElement);
     });
+
+    // Add date element
+    const dateElement = createTextElement('December 31, 2024', 'date-element');
+    certificateContainer.appendChild(dateElement);
 
     slide.appendChild(certificateContainer);
     return slide;
 }
 
 function createCertificateSlide(row, selectedColumns, date, orientation, index) {
-    const slide = document.createElement('li');
-    slide.classList.add('certificate-slide');
+    const slide = document.createElement('div');
+    slide.classList.add('swiper-slide', 'certificate-slide');
     slide.dataset.index = index;
     
     // Create a container for the certificate
@@ -75,6 +153,7 @@ function createCertificateSlide(row, selectedColumns, date, orientation, index) 
     certificateContainer.classList.add('certificate-preview');
     certificateContainer.style.backgroundImage = `url(${uploadedImage})`;
     certificateContainer.style.backgroundSize = 'cover';
+    certificateContainer.style.backgroundPosition = 'center';
     certificateContainer.style.position = 'relative';
 
     // Create name element (concatenated first and last name)
@@ -85,9 +164,13 @@ function createCertificateSlide(row, selectedColumns, date, orientation, index) 
     if (selectedColumns.length > 0) {
         const concatenatedContent = selectedColumns
             .map(col => row[col] || '')
-            .join(' ');
-        const concatenatedElement = createTextElement(concatenatedContent, 'concatenated-element');
-        certificateContainer.appendChild(concatenatedElement);
+            .filter(value => value.trim() !== '') // Filter out empty values
+            .join(' - ');
+        
+        if (concatenatedContent.trim() !== '') {
+            const concatenatedElement = createTextElement(concatenatedContent, 'concatenated-element');
+            certificateContainer.appendChild(concatenatedElement);
+        }
     }
 
     // Create individual column elements
@@ -95,8 +178,10 @@ function createCertificateSlide(row, selectedColumns, date, orientation, index) 
         .filter(col => !selectedColumns.includes(col) && col !== 'Name');
     
     remainingColumns.forEach(col => {
-        const columnElement = createTextElement(row[col] || '', col + '-element');
-        certificateContainer.appendChild(columnElement);
+        if (row[col] && row[col].toString().trim() !== '') {
+            const columnElement = createTextElement(row[col] || '', sanitizeClassName(col) + '-element');
+            certificateContainer.appendChild(columnElement);
+        }
     });
 
     // Add date element

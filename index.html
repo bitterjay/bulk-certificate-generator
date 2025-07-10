@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Certificate Generator</title>
     <link rel="stylesheet" href="styles.css">
+    <!-- Swiper CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
 </head>
 <body>
     <div class="container">
@@ -49,8 +51,14 @@
 
         <section id="preview-area">
             <h2>Certificate Preview</h2>
-            <div id="preview-slider">
-                <ul id="preview-container"></ul>
+            <div class="swiper" id="preview-slider">
+                <div class="swiper-wrapper" id="preview-container">
+                    <!-- Slides will be dynamically generated here -->
+                </div>
+                <!-- Navigation -->
+                <div class="swiper-pagination"></div>
+                <div class="swiper-button-next"></div>
+                <div class="swiper-button-prev"></div>
             </div>
         </section>
 
@@ -59,8 +67,10 @@
         </section>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/unslider/2.0.3/unslider.min.js"></script>
+    <!-- Swiper JS -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    
+    <!-- Load main application -->
     <script type="module" src="src/app.js"></script>
 </body>
 </html>
