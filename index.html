@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Certificate Generator</h1>
+
+        <section id="data-input">
+            <h2>1. Paste Excel Data</h2>
+            <button id="paste-from-clipboard" class="paste-button">Paste from Clipboard</button>
+            <textarea id="paste-data" class="hidden-textarea" placeholder="Paste your Excel data here (tab-separated)" style="display: none;"></textarea>
+            <button id="manual-paste-toggle" class="manual-paste-toggle">Manual Paste</button>
+            <button id="use-sample-data" class="sample-data-button">Use Sample Data</button>
+            <div id="paste-status" class="paste-status"></div>
+            <button id="show-table" style="display: none;">Show Table</button>
+        </section>
+
+        <section id="table-display">
+            <div id="table-container"></div>
+        </section>
+
+        <section id="column-selection">
+            <h2>2. Select Columns to Include</h2>
+            <!-- Column selection UI will be dynamically generated here -->
+        </section>
+
+        <section id="image-upload">
+            <h2>3. Upload Certificate Background</h2>
+            <input type="file" id="png-upload" accept=".png">
+        </section>
+
+        <section id="date-selection">
+            <h2>4. Select Certificate Date</h2>
+            <input type="date" id="certificate-date">
+        </section>
+
+        <section id="orientation-selection">
+            <h2>5. Select Certificate Orientation</h2>
+            <select id="certificate-orientation">
+                <option value="landscape">Landscape</option>
+                <option value="portrait">Portrait</option>
+            </select>
+        </section>
+
+        <section id="preview-controls">
+            <button id="generate-preview" disabled>Generate Preview</button>
+        </section>
+
+        <section id="preview-area">
+            <h2>Certificate Preview</h2>
+            <div id="preview-slider">
+                <ul id="preview-container"></ul>
+            </div>
+        </section>
+
+        <section id="export-controls">
+            <button id="generate-pdf" disabled>Generate PDF</button>
+        </section>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/unslider/2.0.3/unslider.min.js"></script>
+    <script type="module" src="src/app.js"></script>
+</body>
+</html>

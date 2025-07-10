@@ -1,0 +1,338 @@
+/* Basic Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Paste interface styling */
+.paste-button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: background-color 0.3s;
+}
+
+.paste-button:hover {
+    background-color: #0056b3;
+}
+
+.paste-button:active {
+    transform: translateY(1px);
+}
+
+.manual-paste-toggle {
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: background-color 0.3s;
+}
+
+.manual-paste-toggle:hover {
+    background-color: #545b62;
+}
+
+.sample-data-button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 10px;
+    transition: background-color 0.3s;
+}
+
+.sample-data-button:hover {
+    background-color: #218838;
+}
+
+.hidden-textarea {
+    width: 100%;
+    height: 150px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 14px;
+    resize: vertical;
+}
+
+.paste-status {
+    margin-top: 10px;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    min-height: 20px;
+}
+
+.paste-status .success {
+    color: #155724;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.paste-status .error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.paste-status .info {
+    color: #0c5460;
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.paste-status .warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* Preview Slider Styles */
+#preview-slider {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#preview-container {
+    list-style: none;
+    position: relative;
+}
+
+.certificate-preview {
+    width: 100%;
+    aspect-ratio: 16/9; /* Default to landscape, can be adjusted */
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.certificate-text-element {
+    position: absolute;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Pasted Data Table (CSS Grid) */
+.pasted-data-table {
+    display: grid;
+    grid-template-columns: repeat(var(--columns, 1), 1fr);
+    gap: 2px;
+    margin: 20px 0;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    width: 100%;
+    overflow-x: auto;
+}
+
+.pasted-data-header {
+    font-weight: bold;
+    background: #e0e0e0;
+    padding: 8px 6px;
+    border-bottom: 1px solid #bbb;
+    border-right: 1px solid #ccc;
+    text-align: left;
+}
+
+.pasted-data-cell {
+    padding: 8px 6px;
+    border-right: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+    background: #fff;
+    text-align: left;
+    word-break: break-word;
+}
+
+.pasted-data-table > :last-child {
+    border-bottom: none;
+}
+
+.pasted-data-table > .pasted-data-header:last-child,
+.pasted-data-table > .pasted-data-cell:last-child {
+    border-right: none;
+}
+
+/* Unslider Specific Styles */
+.unslider {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+}
+
+.unslider-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.unslider-wrap.unslider-carousel > * {
+    float: left;
+    width: 100%;
+}
+
+.unslider-nav {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+}
+
+.unslider-nav ol {
+    list-style: none;
+    display: flex;
+    gap: 10px;
+}
+
+.unslider-nav ol li {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #ccc;
+    cursor: pointer;
+}
+
+.unslider-nav ol li.unslider-active {
+    background-color: #333;
+}
+
+/* General Button Styling */
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+    transition: background-color 0.3s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+button:disabled:hover {
+    background-color: #6c757d;
+}
+
+/* Form inputs */
+input[type="file"],
+input[type="date"],
+select {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Column selection styling */
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.checkbox-container label {
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    #preview-slider {
+        max-width: 100%;
+    }
+    .pasted-data-table {
+        font-size: 14px;
+    }
+    
+    .paste-button {
+        width: 100%;
+        margin-bottom: 10px;
+        margin-right: 0;
+    }
+    
+    .manual-paste-toggle {
+        width: 100%;
+        margin-left: 0;
+        margin-bottom: 10px;
+    }
+    
+    .sample-data-button {
+        width: 100%;
+        margin-left: 0;
+    }
+}
+
+/* Element Positioning Helpers */
+.name-element {
+    top: 40%;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.concatenated-element {
+    top: 50%;
+    font-size: 18px;
+}
+
+.date-element {
+    bottom: 20%;
+    font-size: 16px;
+}
