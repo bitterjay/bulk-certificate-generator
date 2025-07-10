@@ -19,3 +19,13 @@ export function validateImageFile(file) {
     const allowedTypes = ['image/png'];
     return allowedTypes.includes(file.type);
 }
+
+export function displayImagePreview(base64Data) {
+    const previewContainer = document.getElementById('image-preview-container');
+    const previewImage = document.getElementById('image-preview');
+    
+    if (previewContainer && previewImage) {
+        previewImage.src = base64Data;
+        previewContainer.style.display = 'block';
+    }
+}

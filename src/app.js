@@ -1,5 +1,5 @@
 import { parseExcelData, parsedData } from '../modules/dataParsing.js';
-import { handleImageUpload } from '../modules/imageUpload.js';
+import { handleImageUpload, displayImagePreview } from '../modules/imageUpload.js';
 import { generatePreviewSlider } from '../modules/uiRendering.js';
 
 // DOM Elements
@@ -37,7 +37,15 @@ manualPasteToggle.addEventListener('click', toggleManualPasteMode);
 useSampleDataButton.addEventListener('click', handleUseSampleData);
 pasteDataTextarea.addEventListener('input', handleDataPaste);
 showTableButton.addEventListener('click', togglePastedDataTable);
-pngUploadInput.addEventListener('change', handleImageUpload);
+pngUploadInput.addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+        handleImageUpload(this.files[0]).then(base64Data => {
+            displayImagePreview(base64Data);
+        }).catch(error => {
+            console.error('Error uploading image:', error);
+        });
+    }
+});
 generatePreviewButton.addEventListener('click', handleGeneratePreview);
 
 // Check if Clipboard API is supported
