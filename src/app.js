@@ -23,6 +23,14 @@ let selectedColumns = [];
 let isTableVisible = false;
 let isManualPasteMode = false;
 
+// For debugging - expose data to global scope
+window.debug = {
+    get parsedData() { return parsedData; },
+    get parsedHeaders() { return parsedHeaders; },
+    get parsedRows() { return parsedRows; },
+    get selectedColumns() { return selectedColumns; }
+};
+
 // Event Listeners
 pasteFromClipboardButton.addEventListener('click', handleClipboardPaste);
 manualPasteToggle.addEventListener('click', toggleManualPasteMode);
@@ -104,12 +112,7 @@ function hideManualPasteMode() {
 
 function handleUseSampleData() {
     // Sample data from test-file.xlsx
-    const sampleData = `First Name\tLast Name\tClub\tAge Class\tDivision\tGender\tDiscipline\tPlacement
-Imtiaz\tJackasal\tTropical Troopers\tU13\tBarebow\tMen\tIndoor\t1st
-Alex\tWyatt\tLegacy Archery Club\tU13\tBasic Compound\tMen\tIndoor\t1st
-Nixon\tChambers\tDesert Sky Archers\tU13\tCompound\tMen\tIndoor\t1st
-Jeremiah\tLovin\tLi'l Abner Archery\tU13\tFixed Pins\tMen\tIndoor\t1st
-Jack\tBower\tCarolina Bullseyes\tU13\tRecurve\tMen\tIndoor\t1st`;
+    const sampleData = `First Name\tLast Name\tClub\tAge Class\tDivision\tGender\tDiscipline\tPlacement\nImtiaz\tJackasal\tTropical Troopers\tU13\tBarebow\tMen\tIndoor\t1st\nAlex\tWyatt\tLegacy Archery Club\tU13\tBasic Compound\tMen\tIndoor\t1st\nNixon\tChambers\tDesert Sky Archers\tU13\tCompound\tMen\tIndoor\t1st\nJeremiah\tLovin\tLi'l Abner Archery\tU13\tFixed Pins\tMen\tIndoor\t1st\nJack\tBower\tCarolina Bullseyes\tU13\tRecurve\tMen\tIndoor\t1st`;
 
     // Set the sample data to the hidden textarea
     pasteDataTextarea.value = sampleData;
@@ -209,43 +212,233 @@ function generateColumnSelectionUI() {
     header.textContent = 'Select Columns to Concatenate';
     columnSelectionSection.appendChild(header);
 
+    // Create instruction text
+    const instruction = document.createElement('p');
+    instruction.textContent = 'Drag columns from the available list to the concatenation area below. Order matters - columns will be concatenated left to right.';
+    instruction.classList.add('instruction-text');
+    columnSelectionSection.appendChild(instruction);
+
     // Filter out 'First Name' and 'Last Name'
     const selectableColumns = parsedHeaders.filter(
         header => header.toLowerCase() !== 'first name' &&
                   header.toLowerCase() !== 'last name'
     );
 
-    // Create checkboxes for column selection
+    // Create available columns container
+    const availableColumnsLabel = document.createElement('h4');
+    availableColumnsLabel.textContent = 'Available Columns:';
+    columnSelectionSection.appendChild(availableColumnsLabel);
+
+    const availableColumnsContainer = document.createElement('div');
+    availableColumnsContainer.classList.add('available-columns');
+    availableColumnsContainer.id = 'available-columns';
+    columnSelectionSection.appendChild(availableColumnsContainer);
+
+    // Create draggable column elements
     selectableColumns.forEach(column => {
-        const checkboxContainer = document.createElement('div');
-        checkboxContainer.classList.add('checkbox-container');
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `column-${column}`;
-        checkbox.name = column;
-
-        const label = document.createElement('label');
-        label.htmlFor = `column-${column}`;
-        label.textContent = column;
-
-        checkboxContainer.appendChild(checkbox);
-        checkboxContainer.appendChild(label);
-
-        columnSelectionSection.appendChild(checkboxContainer);
-
-        // Add event listener to track selected columns
-        checkbox.addEventListener('change', (e) => {
-            if (e.target.checked) {
-                selectedColumns.push(column);
-            } else {
-                selectedColumns = selectedColumns.filter(col => col !== column);
-            }
-
-            // Enable generate preview if conditions are met
-            updateGeneratePreviewButton();
-        });
+        const columnTag = createDraggableColumnTag(column);
+        availableColumnsContainer.appendChild(columnTag);
     });
+
+    // Add drop zone event listeners to available columns container
+    setupDropZoneEventListeners(availableColumnsContainer);
+
+    // Create drop zone for concatenation
+    const dropZoneLabel = document.createElement('h4');
+    dropZoneLabel.textContent = 'Columns to Concatenate:';
+    columnSelectionSection.appendChild(dropZoneLabel);
+
+    const dropZone = document.createElement('div');
+    dropZone.classList.add('concatenation-drop-zone');
+    dropZone.id = 'concatenation-drop-zone';
+    
+    // Add placeholder text
+    const placeholder = document.createElement('div');
+    placeholder.classList.add('drop-zone-placeholder');
+    placeholder.textContent = 'Drag columns here to concatenate';
+    dropZone.appendChild(placeholder);
+
+    // Add drop zone event listeners
+    setupDropZoneEventListeners(dropZone);
+    
+    columnSelectionSection.appendChild(dropZone);
+
+    // Reset selected columns
+    selectedColumns = [];
+    updateGeneratePreviewButton();
+}
+
+function createDraggableColumnTag(columnName) {
+    const tag = document.createElement('div');
+    tag.classList.add('column-tag');
+    tag.textContent = columnName;
+    tag.draggable = true;
+    tag.dataset.column = columnName;
+
+    // Add drag event listeners
+    tag.addEventListener('dragstart', handleDragStart);
+    tag.addEventListener('dragend', handleDragEnd);
+
+    return tag;
+}
+
+function setupDropZoneEventListeners(dropZone) {
+    dropZone.addEventListener('dragover', handleDragOver);
+    dropZone.addEventListener('drop', handleDrop);
+    dropZone.addEventListener('dragenter', handleDragEnter);
+    dropZone.addEventListener('dragleave', handleDragLeave);
+}
+
+function handleDragStart(e) {
+    e.dataTransfer.setData('text/plain', e.target.dataset.column);
+    e.dataTransfer.setData('source', e.target.parentElement.id);
+    e.target.classList.add('dragging');
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    if (e.target.classList.contains('concatenation-drop-zone') || 
+        e.target.parentElement.classList.contains('concatenation-drop-zone')) {
+        e.currentTarget.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+        e.currentTarget.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    
+    const columnName = e.dataTransfer.getData('text/plain');
+    const sourceId = e.dataTransfer.getData('source');
+    const dropZone = document.getElementById('concatenation-drop-zone');
+    const availableColumns = document.getElementById('available-columns');
+    
+    if (e.currentTarget.id === 'concatenation-drop-zone') {
+        // Dropping into concatenation zone
+        if (sourceId === 'available-columns') {
+            // Moving from available columns to concatenation zone
+            const draggedElement = Array.from(availableColumns.children)
+                .find(child => child.dataset.column === columnName);
+            
+            if (draggedElement) {
+                // Hide placeholder if it exists
+                const placeholder = dropZone.querySelector('.drop-zone-placeholder');
+                if (placeholder) {
+                    placeholder.style.display = 'none';
+                }
+                
+                // Remove from available columns
+                draggedElement.remove();
+                
+                // Add to concatenation zone
+                const newTag = createDraggableColumnTag(columnName);
+                newTag.classList.add('concatenated-column');
+                
+                // Add remove functionality
+                newTag.addEventListener('dblclick', () => removeConcatenatedColumn(columnName));
+                
+                dropZone.appendChild(newTag);
+                
+                // Update selected columns array
+                selectedColumns.push(columnName);
+                updateGeneratePreviewButton();
+            }
+        } else if (sourceId === 'concatenation-drop-zone') {
+            // Reordering within concatenation zone
+            const draggedElement = Array.from(dropZone.children)
+                .find(child => child.dataset.column === columnName);
+            
+            if (draggedElement) {
+                // Get drop position
+                const afterElement = getDragAfterElement(dropZone, e.clientX);
+                
+                if (afterElement == null) {
+                    dropZone.appendChild(draggedElement);
+                } else {
+                    dropZone.insertBefore(draggedElement, afterElement);
+                }
+                
+                // Update selected columns order
+                updateSelectedColumnsOrder();
+            }
+        }
+    } else if (e.currentTarget.id === 'available-columns') {
+        // Dropping back to available columns (removing from concatenation)
+        if (sourceId === 'concatenation-drop-zone') {
+            removeConcatenatedColumn(columnName);
+        }
+    }
+}
+
+function removeConcatenatedColumn(columnName) {
+    const dropZone = document.getElementById('concatenation-drop-zone');
+    const availableColumns = document.getElementById('available-columns');
+    
+    // Remove from concatenation zone
+    const concatenatedTag = Array.from(dropZone.children)
+        .find(child => child.dataset.column === columnName);
+    
+    if (concatenatedTag) {
+        concatenatedTag.remove();
+        
+        // Add back to available columns
+        const newTag = createDraggableColumnTag(columnName);
+        availableColumns.appendChild(newTag);
+        
+        // Update selected columns array
+        selectedColumns = selectedColumns.filter(col => col !== columnName);
+        
+        // Show placeholder if no columns left
+        if (dropZone.children.length === 0 || 
+            (dropZone.children.length === 1 && dropZone.querySelector('.drop-zone-placeholder'))) {
+            const placeholder = dropZone.querySelector('.drop-zone-placeholder') || 
+                              document.createElement('div');
+            placeholder.classList.add('drop-zone-placeholder');
+            placeholder.textContent = 'Drag columns here to concatenate';
+            placeholder.style.display = 'block';
+            if (!dropZone.contains(placeholder)) {
+                dropZone.appendChild(placeholder);
+            }
+        }
+        
+        updateGeneratePreviewButton();
+    }
+}
+
+function updateSelectedColumnsOrder() {
+    const dropZone = document.getElementById('concatenation-drop-zone');
+    selectedColumns = Array.from(dropZone.children)
+        .filter(child => child.dataset.column)
+        .map(child => child.dataset.column);
+}
+
+function getDragAfterElement(container, x) {
+    const draggableElements = [...container.querySelectorAll('.column-tag:not(.dragging)')];
+    
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = x - box.left - box.width / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
 function updateGeneratePreviewButton() {
