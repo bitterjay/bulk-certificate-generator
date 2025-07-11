@@ -1,6 +1,7 @@
 import { parseExcelData, parsedData } from '../modules/dataParsing.js';
 import { handleImageUpload, displayImagePreview, imageOrientation, imageWidth, imageHeight, imageAspectRatio } from '../modules/imageUpload.js';
-import { generatePreviewSlider, hideElementControls } from '../modules/uiRendering.js';
+import { generatePreviewSlider, hideElementControls, elementStates } from '../modules/uiRendering.js';
+import { generatePdfFromPreviews, savePDF } from '../modules/pdfGeneration.js';
 
 // DOM Elements
 const pasteDataTextarea = document.getElementById('paste-data');
@@ -13,6 +14,7 @@ const pngUploadInput = document.getElementById('png-upload');
 const generatePreviewButton = document.getElementById('generate-preview');
 const generateTestPortraitButton = document.getElementById('generate-test-portrait-preview');
 const generateTestLandscapeButton = document.getElementById('generate-test-landscape-preview');
+const generatePdfButton = document.getElementById('generate-pdf');
 const certificateDateInput = document.getElementById('certificate-date');
 const todayButton = document.getElementById('today-button');
 const columnSelectionSection = document.getElementById('column-selection');
@@ -53,6 +55,7 @@ pngUploadInput.addEventListener('change', function() {
 generatePreviewButton.addEventListener('click', handleGeneratePreview);
 generateTestPortraitButton.addEventListener('click', handleGenerateTestPortraitPreview);
 generateTestLandscapeButton.addEventListener('click', handleGenerateTestLandscapePreview);
+generatePdfButton.addEventListener('click', handleGeneratePdf);
 todayButton.addEventListener('click', handleTodayButtonClick);
 
 // Check if Clipboard API is supported
@@ -664,6 +667,34 @@ function handleGeneratePreview() {
 
     // Enable PDF generation button
     document.getElementById('generate-pdf').disabled = false;
+}
+
+async function handleGeneratePdf() {
+    try {
+        // Disable button to prevent multiple clicks
+        generatePdfButton.disabled = true;
+        generatePdfButton.textContent = 'Generating PDF...';
+
+        // Get all preview slides
+        const previews = document.querySelectorAll('.swiper-slide');
+        
+        // Generate PDF
+        const pdfBytes = await generatePdfFromPreviews(previews, imageOrientation, elementStates);
+
+        // Save the PDF
+        await savePDF(pdfBytes, 'certificates.pdf');
+
+        // Re-enable button
+        generatePdfButton.textContent = 'Generate PDF';
+        // The button remains disabled because a new preview must be generated to create another PDF
+        
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        // Re-enable button and show error
+        generatePdfButton.disabled = false;
+        generatePdfButton.textContent = 'Error - Try Again';
+        pasteStatus.innerHTML = `<span class="error">Failed to generate PDF: ${error.message}</span>`;
+    }
 }
 
 // Update generate preview button state on image upload and date selection

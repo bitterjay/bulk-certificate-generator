@@ -42,7 +42,7 @@ function formatDateForDisplay(dateString) {
 let swiperInstance = null;
 
 // Element positioning state - Enhanced for Step 3
-let elementStates = {};
+export let elementStates = {};
 
 // STEP 5: Theme Management State
 let currentTheme = 'usa-archery';
@@ -921,6 +921,26 @@ function showControlWidgets() {
                            min="0" max="100" step="0.01" value="${state.yPercent.toFixed(2)}">
                 </div>
             </div>
+
+            <div class="lock-controls">
+                <div class="control-group">
+                    <label>Movement Locks:</label>
+                    <div class="lock-buttons">
+                        <button id="lock-horizontal-toggle" class="lock-toggle-button" title="Lock Horizontal Movement">↔</button>
+                        <button id="lock-vertical-toggle" class="lock-toggle-button" title="Lock Vertical Movement">↕</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alignment-controls">
+                <div class="control-group">
+                    <label>Alignment:</label>
+                    <div class="alignment-buttons">
+                        <button id="center-horizontal-button" class="alignment-button">Center Horizontally</button>
+                        <button id="center-vertical-button" class="alignment-button">Center Vertically</button>
+                    </div>
+                </div>
+            </div>
             
             <div class="usage-tip">
                 <p>💡 <strong>Tip:</strong> Use sliders for precise positioning, or click and drag elements directly!</p>
@@ -935,6 +955,11 @@ function showControlWidgets() {
         // Initialize event listeners
         initializeSliderEventListeners();
         initializeThemeEventListeners();
+        initializeLockEventListeners();
+        initializeAlignmentEventListeners();
+
+        // Update lock button states
+        updateLockButtonStates(currentSelectedElement);
     }
 }
 
@@ -1092,9 +1117,95 @@ function updateSliderValues(elementType) {
             ySlider.value = state.yPercent.toFixed(2);
             xDisplay.textContent = `${state.xPercent.toFixed(2)}%`;
             yDisplay.textContent = `${state.yPercent.toFixed(2)}%`;
+
+            // Respect lock state
+            xSlider.disabled = state.lockHorizontal;
+            ySlider.disabled = state.lockVertical;
         }
     }
 }
+
+// STEP 6: Lock Functions
+function initializeLockEventListeners() {
+    const lockHorizontalButton = document.getElementById('lock-horizontal-toggle');
+    const lockVerticalButton = document.getElementById('lock-vertical-toggle');
+
+    if (lockHorizontalButton) {
+        lockHorizontalButton.addEventListener('click', () => {
+            if (currentSelectedElement) {
+                toggleLockHorizontal(currentSelectedElement);
+            }
+        });
+    }
+
+    if (lockVerticalButton) {
+        lockVerticalButton.addEventListener('click', () => {
+            if (currentSelectedElement) {
+                toggleLockVertical(currentSelectedElement);
+            }
+        });
+    }
+}
+
+function toggleLockHorizontal(elementType) {
+    const state = getElementState(elementType);
+    if (state) {
+        const newLockState = !state.lockHorizontal;
+        updateElementState(elementType, { lockHorizontal: newLockState });
+        updateLockButtonStates(elementType);
+        updateSliderValues(elementType); // To disable/enable slider
+    }
+}
+
+function toggleLockVertical(elementType) {
+    const state = getElementState(elementType);
+    if (state) {
+        const newLockState = !state.lockVertical;
+        updateElementState(elementType, { lockVertical: newLockState });
+        updateLockButtonStates(elementType);
+        updateSliderValues(elementType); // To disable/enable slider
+    }
+}
+
+function updateLockButtonStates(elementType) {
+    const state = getElementState(elementType);
+    if (state) {
+        const lockHorizontalButton = document.getElementById('lock-horizontal-toggle');
+        const lockVerticalButton = document.getElementById('lock-vertical-toggle');
+
+        if (lockHorizontalButton) {
+            lockHorizontalButton.classList.toggle('active', state.lockHorizontal);
+        }
+        if (lockVerticalButton) {
+            lockVerticalButton.classList.toggle('active', state.lockVertical);
+        }
+    }
+}
+
+// STEP 7: Alignment Functions
+function initializeAlignmentEventListeners() {
+    const centerHorizontalButton = document.getElementById('center-horizontal-button');
+    const centerVerticalButton = document.getElementById('center-vertical-button');
+
+    if (centerHorizontalButton) {
+        centerHorizontalButton.addEventListener('click', () => {
+            if (currentSelectedElement) {
+                centerElementHorizontally(currentSelectedElement);
+                updateSliderValues(currentSelectedElement);
+            }
+        });
+    }
+
+    if (centerVerticalButton) {
+        centerVerticalButton.addEventListener('click', () => {
+            if (currentSelectedElement) {
+                centerElementVertically(currentSelectedElement);
+                updateSliderValues(currentSelectedElement);
+            }
+        });
+    }
+}
+
 
 export function generatePreviewSlider(selectedColumns, date, orientation) {
     const previewContainer = document.getElementById('preview-container');
@@ -1552,5 +1663,12 @@ export {
     generateColorButtons,
     generateThemeOptions,
     updateColorSelection,
-    initializeThemeEventListeners
+    initializeThemeEventListeners,
+    // Step 6 lock exports
+    initializeLockEventListeners,
+    toggleLockHorizontal,
+    toggleLockVertical,
+    updateLockButtonStates,
+    // Step 7 alignment exports
+    initializeAlignmentEventListeners
 };
