@@ -1,0 +1,1 @@
+check against @.clinerules/functional-specification.md and @.clinerules/iteration-guidelines.md - if the functionality has changed, prompt the user if we should update the functional specification document and provide a comparison of what it is currently and what it will be updated to.
