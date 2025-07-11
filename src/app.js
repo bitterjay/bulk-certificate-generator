@@ -8,7 +8,6 @@ const pasteDataTextarea = document.getElementById('paste-data');
 const pasteFromClipboardButton = document.getElementById('paste-from-clipboard');
 const manualPasteToggle = document.getElementById('manual-paste-toggle');
 const useSampleDataButton = document.getElementById('use-sample-data');
-const pasteStatus = document.getElementById('paste-status');
 const showTableButton = document.getElementById('show-table');
 const pngUploadInput = document.getElementById('png-upload');
 const generatePreviewButton = document.getElementById('generate-preview');
@@ -34,6 +33,127 @@ window.debug = {
     get parsedRows() { return parsedRows; },
     get selectedColumns() { return selectedColumns; }
 };
+
+// Toast Notification System
+class ToastManager {
+    constructor() {
+        this.container = this.createContainer();
+        this.toasts = new Set();
+    }
+
+    createContainer() {
+        let container = document.querySelector('.toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        return container;
+    }
+
+    show(message, type = 'info', duration = null) {
+        const toast = this.createToast(message, type);
+        this.container.appendChild(toast);
+        this.toasts.add(toast);
+
+        // Trigger show animation
+        requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+
+        // Set auto-dismiss duration based on type
+        if (duration === null) {
+            switch (type) {
+                case 'success': duration = 3000; break;
+                case 'info': duration = 4000; break;
+                case 'warning': duration = 5000; break;
+                case 'error': duration = 8000; break;
+                default: duration = 4000;
+            }
+        }
+
+        // Auto-dismiss timer
+        if (duration > 0) {
+            this.startProgressBar(toast, duration);
+            setTimeout(() => this.dismiss(toast), duration);
+        }
+
+        return toast;
+    }
+
+    createToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-icon"></div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close" aria-label="Close">&times;</button>
+            <div class="toast-progress">
+                <div class="toast-progress-bar"></div>
+            </div>
+        `;
+
+        // Close button functionality
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.addEventListener('click', () => this.dismiss(toast));
+
+        // Click to dismiss (optional)
+        toast.addEventListener('click', (e) => {
+            if (e.target === toast || e.target.classList.contains('toast-content') || e.target.classList.contains('toast-message')) {
+                this.dismiss(toast);
+            }
+        });
+
+        return toast;
+    }
+
+    startProgressBar(toast, duration) {
+        const progressBar = toast.querySelector('.toast-progress-bar');
+        if (progressBar) {
+            progressBar.style.transition = `width ${duration}ms linear`;
+            requestAnimationFrame(() => {
+                progressBar.style.width = '0%';
+            });
+        }
+    }
+
+    dismiss(toast) {
+        if (!this.toasts.has(toast)) return;
+
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        
+        // Remove from DOM after animation
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+            this.toasts.delete(toast);
+        }, 300);
+    }
+
+    success(message, duration = null) {
+        return this.show(message, 'success', duration);
+    }
+
+    error(message, duration = null) {
+        return this.show(message, 'error', duration);
+    }
+
+    warning(message, duration = null) {
+        return this.show(message, 'warning', duration);
+    }
+
+    info(message, duration = null) {
+        return this.show(message, 'info', duration);
+    }
+}
+
+// Initialize toast manager
+const toast = new ToastManager();
 
 // Event Listeners
 pasteFromClipboardButton.addEventListener('click', handleClipboardPaste);
@@ -69,18 +189,18 @@ function initializePasteInterface() {
         // Show manual paste mode by default if clipboard API is not supported
         showManualPasteMode();
         pasteFromClipboardButton.style.display = 'none';
-        pasteStatus.innerHTML = '<span class="warning">Clipboard API not supported. Please use manual paste.</span>';
+        toast.warning('Clipboard API not supported. Please use manual paste.');
     }
 }
 
 async function handleClipboardPaste() {
     try {
-        pasteStatus.innerHTML = '<span class="info">Reading from clipboard...</span>';
+        toast.info('Reading from clipboard...');
         
         const clipboardText = await navigator.clipboard.readText();
         
         if (!clipboardText.trim()) {
-            pasteStatus.innerHTML = '<span class="error">Clipboard is empty. Please copy data from Excel first.</span>';
+            toast.error('Clipboard is empty. Please copy data from Excel first.');
             return;
         }
         
@@ -90,15 +210,15 @@ async function handleClipboardPaste() {
         // Process the data
         handleDataPaste();
         
-        pasteStatus.innerHTML = '<span class="success">Data pasted successfully!</span>';
+        toast.success('Data pasted successfully!');
         
     } catch (error) {
         console.error('Failed to read clipboard:', error);
         
         if (error.name === 'NotAllowedError') {
-            pasteStatus.innerHTML = '<span class="error">Clipboard access denied. Please allow clipboard access or use manual paste.</span>';
+            toast.error('Clipboard access denied. Please allow clipboard access or use manual paste.');
         } else {
-            pasteStatus.innerHTML = '<span class="error">Failed to read clipboard. Please try manual paste.</span>';
+            toast.error('Failed to read clipboard. Please try manual paste.');
         }
         
         // Show manual paste option as fallback
@@ -118,14 +238,13 @@ function showManualPasteMode() {
     pasteDataTextarea.style.display = 'block';
     manualPasteToggle.textContent = 'Hide Manual Paste';
     isManualPasteMode = true;
-    pasteStatus.innerHTML = '<span class="info">Paste your Excel data in the text area below.</span>';
+    toast.info('Paste your Excel data in the text area below.');
 }
 
 function hideManualPasteMode() {
     pasteDataTextarea.style.display = 'none';
     manualPasteToggle.textContent = 'Manual Paste';
     isManualPasteMode = false;
-    pasteStatus.innerHTML = '';
 }
 
 function handleUseSampleData() {
@@ -139,7 +258,7 @@ function handleUseSampleData() {
     handleDataPaste();
     
     // Show success status
-    pasteStatus.innerHTML = '<span class="success">Sample data loaded successfully!</span>';
+    toast.success('Sample data loaded successfully!');
     
     // Hide manual paste mode if it's showing
     if (isManualPasteMode) {
@@ -217,8 +336,8 @@ async function handleGenerateTestPortraitPreview() {
         generateTestPortraitButton.textContent = 'Portrait Error - Try Again';
         generateTestPortraitButton.disabled = false;
         
-        // Show error in paste status
-        pasteStatus.innerHTML = `<span class="error">Portrait test error: ${error.message}</span>`;
+        // Show error in toast
+        toast.error(`Portrait test error: ${error.message}`);
         
         setTimeout(() => {
             generateTestPortraitButton.textContent = 'Test Portrait Preview';
@@ -280,8 +399,8 @@ async function handleGenerateTestLandscapePreview() {
         generateTestLandscapeButton.textContent = 'Landscape Error - Try Again';
         generateTestLandscapeButton.disabled = false;
         
-        // Show error in paste status
-        pasteStatus.innerHTML = `<span class="error">Landscape test error: ${error.message}</span>`;
+        // Show error in toast
+        toast.error(`Landscape test error: ${error.message}`);
         
         setTimeout(() => {
             generateTestLandscapeButton.textContent = 'Test Landscape Preview';
@@ -354,13 +473,13 @@ function handleDataPaste() {
             // Generate column selection UI
             generateColumnSelectionUI();
             
-            // Update status
-            if (pasteStatus.innerHTML.includes('info')) {
-                pasteStatus.innerHTML = '<span class="success">Data processed successfully!</span>';
+            // Update status - only show success if we haven't already shown a success message
+            if (!document.querySelector('.toast.success')) {
+                toast.success('Data processed successfully!');
             }
         } catch (error) {
             console.error('Error parsing data:', error);
-            pasteStatus.innerHTML = '<span class="error">Error parsing data. Please ensure you have copied the data correctly.</span>';
+            toast.error('Error parsing data. Please ensure you have copied the data correctly.');
         }
     }
 }
@@ -424,21 +543,29 @@ function generateColumnSelectionUI() {
     instruction.classList.add('instruction-text');
     columnSelectionSection.appendChild(instruction);
 
+    // Create wrapper container for h4s and main containers only
+    const columnSelectionContainer = document.createElement('div');
+    columnSelectionContainer.id = 'column-selection-container';
+
     // Filter out 'First Name' and 'Last Name'
     const selectableColumns = parsedHeaders.filter(
         header => header.toLowerCase() !== 'first name' &&
                   header.toLowerCase() !== 'last name'
     );
 
+    // Create grid column for available columns
+    const availableGridColumn = document.createElement('div');
+    availableGridColumn.classList.add('grid-column');
+
     // Create available columns container
     const availableColumnsLabel = document.createElement('h4');
     availableColumnsLabel.textContent = 'Available Columns:';
-    columnSelectionSection.appendChild(availableColumnsLabel);
+    availableGridColumn.appendChild(availableColumnsLabel);
 
     const availableColumnsContainer = document.createElement('div');
     availableColumnsContainer.classList.add('available-columns');
     availableColumnsContainer.id = 'available-columns';
-    columnSelectionSection.appendChild(availableColumnsContainer);
+    availableGridColumn.appendChild(availableColumnsContainer);
 
     // Create draggable column elements
     selectableColumns.forEach(column => {
@@ -449,10 +576,16 @@ function generateColumnSelectionUI() {
     // Add drop zone event listeners to available columns container
     setupDropZoneEventListeners(availableColumnsContainer);
 
+    columnSelectionContainer.appendChild(availableGridColumn);
+
+    // Create grid column for concatenation drop zone
+    const concatenationGridColumn = document.createElement('div');
+    concatenationGridColumn.classList.add('grid-column');
+
     // Create drop zone for concatenation
     const dropZoneLabel = document.createElement('h4');
     dropZoneLabel.textContent = 'Columns to Concatenate:';
-    columnSelectionSection.appendChild(dropZoneLabel);
+    concatenationGridColumn.appendChild(dropZoneLabel);
 
     const dropZone = document.createElement('div');
     dropZone.classList.add('concatenation-drop-zone');
@@ -467,7 +600,12 @@ function generateColumnSelectionUI() {
     // Add drop zone event listeners
     setupDropZoneEventListeners(dropZone);
     
-    columnSelectionSection.appendChild(dropZone);
+    concatenationGridColumn.appendChild(dropZone);
+
+    columnSelectionContainer.appendChild(concatenationGridColumn);
+
+    // Append the wrapper container to the column selection section
+    columnSelectionSection.appendChild(columnSelectionContainer);
 
     // Reset selected columns
     selectedColumns = [];
@@ -693,7 +831,7 @@ async function handleGeneratePdf() {
         // Re-enable button and show error
         generatePdfButton.disabled = false;
         generatePdfButton.textContent = 'Error - Try Again';
-        pasteStatus.innerHTML = `<span class="error">Failed to generate PDF: ${error.message}</span>`;
+        toast.error(`Failed to generate PDF: ${error.message}`);
     }
 }
 
