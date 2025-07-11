@@ -34,11 +34,19 @@
 
         <section id="image-upload">
             <h2>3. Upload Certificate Background</h2>
-            <input type="file" id="png-upload" accept=".png,.jpg,.jpeg">
-            <div id="image-preview-container" style="display: none;">
-                <h3>Preview:</h3>
-                <img id="image-preview" alt="Certificate background preview">
+            <div class="file-upload-container">
+                <input type="file" id="png-upload" accept=".png,.jpg,.jpeg" style="display: none;">
+                <button type="button" id="upload-trigger" class="upload-button">
+                    📁 Choose Certificate Background
+                </button>
+                <div id="filename-display" class="filename-display" style="display: none;">
+                    <span class="filename-text">No file selected</span>
+                    <button type="button" id="clear-file" class="clear-file-button" title="Clear selection">×</button>
+                </div>
             </div>
+            <button id="view-image-button" class="view-image-button" style="display: none;">
+                View Uploaded Image
+            </button>
         </section>
 
         <section id="date-selection">
@@ -88,6 +96,14 @@
         <section id="export-controls">
             <button id="generate-pdf" disabled>Generate PDF</button>
         </section>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div id="image-lightbox" class="lightbox-overlay" style="display: none;">
+        <div class="lightbox-container">
+            <button class="lightbox-close" aria-label="Close">&times;</button>
+            <img id="lightbox-image" class="lightbox-image" alt="Certificate background">
+        </div>
     </div>
 
     <!-- Swiper JS -->

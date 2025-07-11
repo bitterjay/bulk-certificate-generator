@@ -1,5 +1,5 @@
 import { parseExcelData, parsedData } from '../modules/dataParsing.js';
-import { handleImageUpload, displayImagePreview, imageOrientation, imageWidth, imageHeight, imageAspectRatio } from '../modules/imageUpload.js';
+import { handleImageUpload, showViewImageButton, uploadedImage, imageOrientation, imageWidth, imageHeight, imageAspectRatio } from '../modules/imageUpload.js';
 import { generatePreviewSlider, hideElementControls, elementStates } from '../modules/uiRendering.js';
 import { generatePdfFromPreviews, savePDF } from '../modules/pdfGeneration.js';
 
@@ -155,6 +155,71 @@ class ToastManager {
 // Initialize toast manager
 const toast = new ToastManager();
 
+// Lightbox functionality
+function openLightbox() {
+    const lightbox = document.getElementById('image-lightbox');
+    const lightboxImage = document.getElementById('lightbox-image');
+    
+    if (lightbox && lightboxImage && uploadedImage) {
+        lightboxImage.src = uploadedImage;
+        lightbox.style.display = 'flex';
+        requestAnimationFrame(() => {
+            lightbox.classList.add('show');
+        });
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeLightbox() {
+    const lightbox = document.getElementById('image-lightbox');
+    
+    if (lightbox) {
+        lightbox.classList.remove('show');
+        setTimeout(() => {
+            lightbox.style.display = 'none';
+        }, 300);
+        
+        // Restore body scroll
+        document.body.style.overflow = '';
+    }
+}
+
+// File upload helper functions
+function clearFileSelection() {
+    const fileInput = document.getElementById('png-upload');
+    const filenameDisplay = document.getElementById('filename-display');
+    const uploadButton = document.getElementById('upload-trigger');
+    const viewImageButton = document.getElementById('view-image-button');
+    
+    fileInput.value = '';
+    filenameDisplay.style.display = 'none';
+    uploadButton.innerHTML = '📁 Choose Certificate Background';
+    viewImageButton.style.display = 'none';
+    
+    // Clear any uploaded image data and orientation display
+    const orientationDisplay = document.querySelector('.orientation-display');
+    if (orientationDisplay) {
+        orientationDisplay.remove();
+    }
+    
+    // Update preview button state
+    updateGeneratePreviewButton();
+    
+    toast.info('File selection cleared');
+}
+
+function updateFilenameDisplay(filename) {
+    const filenameDisplay = document.getElementById('filename-display');
+    const filenameText = document.querySelector('.filename-text');
+    const uploadButton = document.getElementById('upload-trigger');
+    
+    filenameText.textContent = filename;
+    filenameDisplay.style.display = 'flex';
+    uploadButton.innerHTML = '📁 Change Certificate Background';
+}
+
 // Event Listeners
 pasteFromClipboardButton.addEventListener('click', handleClipboardPaste);
 manualPasteToggle.addEventListener('click', toggleManualPasteMode);
@@ -163,13 +228,21 @@ pasteDataTextarea.addEventListener('input', handleDataPaste);
 showTableButton.addEventListener('click', togglePastedDataTable);
 pngUploadInput.addEventListener('change', function() {
     if (this.files && this.files[0]) {
-        handleImageUpload(this.files[0]).then(base64Data => {
-            displayImagePreview(base64Data);
+        const file = this.files[0];
+        updateFilenameDisplay(file.name);
+        
+        handleImageUpload(file).then(base64Data => {
+            showViewImageButton();
             // Update preview button state after orientation is detected
             updateGeneratePreviewButton();
         }).catch(error => {
             console.error('Error uploading image:', error);
+            // Reset filename display on error
+            clearFileSelection();
         });
+    } else {
+        // No file selected, clear display
+        clearFileSelection();
     }
 });
 generatePreviewButton.addEventListener('click', handleGeneratePreview);
@@ -177,6 +250,31 @@ generateTestPortraitButton.addEventListener('click', handleGenerateTestPortraitP
 generateTestLandscapeButton.addEventListener('click', handleGenerateTestLandscapePreview);
 generatePdfButton.addEventListener('click', handleGeneratePdf);
 todayButton.addEventListener('click', handleTodayButtonClick);
+
+// File upload button event listeners
+document.getElementById('upload-trigger').addEventListener('click', function() {
+    document.getElementById('png-upload').click();
+});
+
+document.getElementById('clear-file').addEventListener('click', function() {
+    clearFileSelection();
+});
+
+// Lightbox event listeners
+document.getElementById('view-image-button').addEventListener('click', openLightbox);
+document.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+document.getElementById('image-lightbox').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeLightbox();
+    }
+});
+
+// ESC key to close lightbox
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeLightbox();
+    }
+});
 
 // Check if Clipboard API is supported
 function isClipboardAPISupported() {
@@ -306,7 +404,7 @@ async function handleGenerateTestPortraitPreview() {
         // Step 4: Process the image upload
         updatePortraitButtonText('Processing Portrait Image...');
         const base64Data = await handleImageUpload(file);
-        displayImagePreview(base64Data);
+        showViewImageButton();
         
         // Step 5: Set default column concatenation (use some interesting columns)
         updatePortraitButtonText('Configuring Columns...');
@@ -369,7 +467,7 @@ async function handleGenerateTestLandscapePreview() {
         // Step 4: Process the image upload
         updateLandscapeButtonText('Processing Landscape Image...');
         const base64Data = await handleImageUpload(file);
-        displayImagePreview(base64Data);
+        showViewImageButton();
         
         // Step 5: Set default column concatenation (use some interesting columns)
         updateLandscapeButtonText('Configuring Columns...');

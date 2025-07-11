@@ -44,13 +44,10 @@ export function validateImageFile(file) {
     return allowedTypes.includes(file.type);
 }
 
-export function displayImagePreview(base64Data) {
-    const previewContainer = document.getElementById('image-preview-container');
-    const previewImage = document.getElementById('image-preview');
-    
-    if (previewContainer && previewImage) {
-        previewImage.src = base64Data;
-        previewContainer.style.display = 'block';
+export function showViewImageButton() {
+    const viewButton = document.getElementById('view-image-button');
+    if (viewButton) {
+        viewButton.style.display = 'inline-block';
     }
 }
 
@@ -86,10 +83,10 @@ function updateOrientationDisplay(orientation) {
         orientationDisplay.id = 'orientation-display';
         orientationDisplay.className = 'orientation-display';
         
-        // Insert after the image preview container
-        const previewContainer = document.getElementById('image-preview-container');
-        if (previewContainer && previewContainer.parentNode) {
-            previewContainer.parentNode.insertBefore(orientationDisplay, previewContainer.nextSibling);
+        // Insert after the view image button
+        const viewButton = document.getElementById('view-image-button');
+        if (viewButton && viewButton.parentNode) {
+            viewButton.parentNode.insertBefore(orientationDisplay, viewButton.nextSibling);
         }
     }
     
