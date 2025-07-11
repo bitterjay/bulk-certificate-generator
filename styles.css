@@ -408,8 +408,8 @@ input[type="date"] {
     font-size: 36px;
     font-weight: 600;
     color: #333;
-    text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
-    background: rgba(255,255,255,0.8);
+    /* text-shadow: 2px 2px 4px rgba(255,255,255,0.8); */
+    /* background: rgba(0, 0, 0, 0.5); */
     padding: 10px 20px;
     border-radius: 5px;
     white-space: nowrap;
@@ -420,8 +420,8 @@ input[type="date"] {
     font-size: 24px;
     font-weight: 600;
     color: #555;
-    text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
-    background: rgba(255,255,255,0.7);
+    /* text-shadow: 1px 1px 2px rgba(255,255,255,0.8); */
+    /* background: rgba(255,255,255,0.7); */
     padding: 8px 16px;
     border-radius: 5px;
     white-space: nowrap;
@@ -432,7 +432,7 @@ input[type="date"] {
     font-size: 18px;
     font-weight: 600;
     color: #666;
-    background: rgba(255,255,255,0.8);
+    /* background: rgba(255,255,255,0.8); */
     padding: 5px 10px;
     border-radius: 5px;
     white-space: nowrap;
@@ -444,10 +444,10 @@ input[type="date"] {
     font-size: 20px;
     font-weight: 600;
     color: #444;
-    background: rgba(255,255,255,0.7);
+    /* background: rgba(255,255,255,0.7); */
     padding: 6px 12px;
     border-radius: 5px;
-    text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+    /* text-shadow: 1px 1px 2px rgba(255,255,255,0.8); */
     white-space: nowrap;
     overflow: hidden;
 }
@@ -455,7 +455,8 @@ input[type="date"] {
 /* Element selection highlighting */
 .element-selected {
     /* border: 2px dashed #007bff !important; */
-    background-color: rgba(0, 123, 255, 0.1) !important;
+    background-color: rgba(0, 123, 255, .8) !important;
+    color:white !important;
     transition: all 0.3s ease;
     cursor: move !important;
 }
@@ -778,6 +779,35 @@ input[type="date"] {
     border: 3px solid #007bff !important;
 }
 
+/* Selected color display styling */
+.selected-color-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.selected-color-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.selected-color-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: inline-block;
+}
+
+/* Special styling for white color in selected box */
+.selected-color-box[style*="background-color: rgb(255, 255, 255)"],
+.selected-color-box[style*="background-color: #ffffff"] {
+    border: 2px solid #ccc !important;
+}
+
 /* Lock Controls Styling */
 .lock-controls {
     margin: 20px 0;
@@ -842,6 +872,47 @@ input[type="date"] {
 
 .alignment-button:hover {
     background-color: #0056b3;
+}
+
+/* Font Size Controls Styling */
+.font-size-controls {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+/* Uppercase Toggle Button Styling */
+.uppercase-toggle-button {
+    background-color: #6c757d;
+    color: white;
+    border: 2px solid transparent;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    min-width: 60px;
+}
+
+.uppercase-toggle-button:hover {
+    background-color: #5a6268;
+}
+
+.uppercase-toggle-button.active {
+    background-color: #007bff;
+    border-color: #0056b3;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
+}
+
+.uppercase-toggle-button.active .uppercase-text {
+    text-transform: uppercase;
+}
+
+.uppercase-toggle-button:not(.active) .uppercase-text {
+    text-transform: lowercase;
 }
 
 /* Navigation styles */
