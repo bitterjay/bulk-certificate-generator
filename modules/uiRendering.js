@@ -15,6 +15,10 @@ let swiperInstance = null;
 // Element positioning state
 let elementStates = {};
 
+// Element selection state
+let currentSelectedElement = null;
+let isElementControlsVisible = false;
+
 // Function to get default positions for each element type
 function getDefaultPosition(elementType) {
     const positions = {
@@ -89,6 +93,186 @@ function calculateSlideDimensions() {
     };
 }
 
+// Function to get user-friendly element names
+function getElementFriendlyName(elementType) {
+    const friendlyNames = {
+        'name-element': 'Name',
+        'concatenated-element': 'Additional Info',
+        'date-element': 'Date'
+    };
+    
+    if (friendlyNames[elementType]) {
+        return friendlyNames[elementType];
+    }
+    
+    // For individual column elements, extract the column name
+    if (elementType.endsWith('-element')) {
+        const columnName = elementType.replace('-element', '');
+        // Convert dash-separated back to proper title case
+        return columnName.split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+    }
+    
+    return elementType;
+}
+
+// Function to generate element selection buttons
+function generateElementButtons() {
+    const buttonsContainer = document.getElementById('element-buttons-container');
+    if (!buttonsContainer) return;
+    
+    // Clear existing buttons
+    buttonsContainer.innerHTML = '';
+    
+    // Get the first slide to analyze available elements
+    const firstSlide = document.querySelector('.swiper-slide .certificate-preview');
+    if (!firstSlide) return;
+    
+    // Find all unique element types in the first slide
+    const elements = firstSlide.querySelectorAll('div');
+    const elementTypes = new Set();
+    
+    elements.forEach(element => {
+        // Extract element type from ID (format: elementType-slideIndex)
+        const id = element.id;
+        if (id && id.includes('-')) {
+            const lastDashIndex = id.lastIndexOf('-');
+            const elementType = id.substring(0, lastDashIndex);
+            elementTypes.add(elementType);
+        }
+    });
+    
+    // Create buttons for each element type
+    elementTypes.forEach(elementType => {
+        const button = document.createElement('button');
+        button.classList.add('element-button');
+        button.textContent = getElementFriendlyName(elementType);
+        button.dataset.elementType = elementType;
+        
+        // Add click event listener
+        button.addEventListener('click', () => selectElement(elementType));
+        
+        buttonsContainer.appendChild(button);
+    });
+}
+
+// Function to select an element
+function selectElement(elementType) {
+    // Clear previous selection
+    clearElementSelection();
+    
+    // Set new selection
+    currentSelectedElement = elementType;
+    
+    // Update button states
+    updateElementButtonStates();
+    
+    // Apply highlighting to all elements of this type across all slides
+    applyElementHighlighting(elementType);
+    
+    // Show control widgets area
+    showControlWidgets();
+}
+
+// Function to clear element selection
+function clearElementSelection() {
+    if (currentSelectedElement) {
+        // Remove highlighting from all elements
+        const allElements = document.querySelectorAll(`[id^="${currentSelectedElement}-"]`);
+        allElements.forEach(element => {
+            element.classList.remove('element-selected');
+        });
+        
+        currentSelectedElement = null;
+    }
+    
+    // Update button states
+    updateElementButtonStates();
+    
+    // Hide control widgets
+    hideControlWidgets();
+}
+
+// Function to update button states
+function updateElementButtonStates() {
+    const buttons = document.querySelectorAll('.element-button');
+    buttons.forEach(button => {
+        const elementType = button.dataset.elementType;
+        if (elementType === currentSelectedElement) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
+    });
+}
+
+// Function to apply highlighting to elements
+function applyElementHighlighting(elementType) {
+    const elements = document.querySelectorAll(`[id^="${elementType}-"]`);
+    elements.forEach(element => {
+        element.classList.add('element-selected');
+    });
+}
+
+// Function to show control widgets
+function showControlWidgets() {
+    const controlWidgets = document.getElementById('control-widgets');
+    if (controlWidgets && currentSelectedElement) {
+        controlWidgets.classList.add('has-controls');
+        controlWidgets.innerHTML = `
+            <div style="text-align: center; color: #007bff;">
+                <h4>Editing: ${getElementFriendlyName(currentSelectedElement)}</h4>
+                <p>Element controls will appear here in the next step.</p>
+            </div>
+        `;
+    }
+}
+
+// Function to hide control widgets
+function hideControlWidgets() {
+    const controlWidgets = document.getElementById('control-widgets');
+    if (controlWidgets) {
+        controlWidgets.classList.remove('has-controls');
+        controlWidgets.innerHTML = 'Select an element to edit its position and styling.';
+    }
+}
+
+// Function to show element controls panel
+function showElementControls() {
+    const elementControls = document.getElementById('element-controls');
+    if (elementControls) {
+        elementControls.style.display = 'block';
+        isElementControlsVisible = true;
+        
+        // Generate element buttons
+        generateElementButtons();
+    }
+}
+
+// Function to hide element controls panel
+function hideElementControls() {
+    const elementControls = document.getElementById('element-controls');
+    if (elementControls) {
+        elementControls.style.display = 'none';
+        isElementControlsVisible = false;
+        
+        // Clear selection
+        clearElementSelection();
+    }
+}
+
+// Function to handle slide change events
+function handleSlideChange() {
+    // Re-apply highlighting if an element is selected
+    if (currentSelectedElement) {
+        // Small delay to ensure slide transition is complete
+        setTimeout(() => {
+            applyElementHighlighting(currentSelectedElement);
+        }, 100);
+    }
+}
+
 export function generatePreviewSlider(selectedColumns, date, orientation) {
     const previewContainer = document.getElementById('preview-container');
     previewContainer.innerHTML = ''; // Clear previous previews
@@ -111,6 +295,9 @@ export function generatePreviewSlider(selectedColumns, date, orientation) {
 
     // Initialize Swiper
     initializeSwiper();
+    
+    // Show element controls after successful preview generation
+    showElementControls();
 }
 
 function updateSwiperContainerHeight(height) {
@@ -168,6 +355,11 @@ function initializeSwiper() {
             touchRatio: 1,
             touchAngle: 45,
             grabCursor: true,
+
+            // Events
+            on: {
+                slideChange: handleSlideChange,
+            },
 
             // Responsive breakpoints
             breakpoints: {
@@ -536,8 +728,13 @@ function scaleElementByType(elementType, fontSize) {
     updateElementsAcrossSlides(elementType);
 }
 
-// Export new positioning functions for element controls
+// Export new element selection functions
 export {
+    generateElementButtons,
+    selectElement,
+    clearElementSelection,
+    showElementControls,
+    hideElementControls,
     getElementPosition,
     setElementPosition,
     centerElementHorizontally,

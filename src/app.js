@@ -1,6 +1,6 @@
 import { parseExcelData, parsedData } from '../modules/dataParsing.js';
 import { handleImageUpload, displayImagePreview, imageOrientation, imageWidth, imageHeight, imageAspectRatio } from '../modules/imageUpload.js';
-import { generatePreviewSlider } from '../modules/uiRendering.js';
+import { generatePreviewSlider, hideElementControls } from '../modules/uiRendering.js';
 
 // DOM Elements
 const pasteDataTextarea = document.getElementById('paste-data');
@@ -330,6 +330,12 @@ function handleDataPaste() {
     const pastedData = pasteDataTextarea.value.trim();
     if (pastedData) {
         try {
+            // Hide element controls when new data is pasted
+            hideElementControls();
+            
+            // Hide preview area when new data is pasted
+            document.getElementById('preview-area').style.display = 'none';
+            
             // Parse the data and get headers and rows
             parsedHeaders = parseExcelData(pastedData);
             parsedRows = parsedData; // Always set parsedRows to the global parsedData
