@@ -12,12 +12,29 @@ function sanitizeClassName(columnName) {
 // Global variable to store the Swiper instance
 let swiperInstance = null;
 
-// Element positioning state
+// Element positioning state - Enhanced for Step 3
 let elementStates = {};
 
 // Element selection state
 let currentSelectedElement = null;
 let isElementControlsVisible = false;
+
+// Performance optimization: Cache container dimensions during drag
+let cachedContainerDimensions = null;
+
+// Drag state management - Enhanced with offset tracking and performance optimization
+let dragState = {
+    isDragging: false,
+    currentElement: null,
+    startX: 0,
+    startY: 0,
+    elementType: null,
+    initialOffsetX: 0,  // New: offset from mouse to element position
+    initialOffsetY: 0,  // New: offset from mouse to element position
+    initialElementX: 0, // New: element's initial position
+    initialElementY: 0, // New: element's initial position
+    animationFrameId: null // For smooth updates
+};
 
 // Function to get default positions for each element type
 function getDefaultPosition(elementType) {
@@ -53,6 +70,382 @@ function getDistributedPosition(elementType, index) {
         x: 50, // Center horizontally
         y: baseY + (index * spacing)
     };
+}
+
+// STEP 3: Enhanced State Management Functions
+
+// Initialize element states for all detected elements
+function initializeElementStates(availableElements) {
+    console.log('Initializing element states for:', availableElements);
+    
+    // Clear existing states
+    elementStates = {};
+    
+    // Initialize states for each element type
+    availableElements.forEach(elementType => {
+        const defaultPos = getDefaultPosition(elementType);
+        const defaultFontSize = getDefaultFontSize(elementType);
+        
+        elementStates[elementType] = {
+            xPercent: defaultPos.x,
+            yPercent: defaultPos.y,
+            fontSize: defaultFontSize,
+            lockHorizontal: false,
+            lockVertical: false,
+            isVisible: true,
+            lastUpdated: Date.now()
+        };
+    });
+    
+    console.log('Element states initialized:', elementStates);
+}
+
+// Get complete state object for an element
+function getElementState(elementType) {
+    return elementStates[elementType] || null;
+}
+
+// Update specific state properties for an element
+function updateElementState(elementType, updates, syncToSlides = true) {
+    if (!elementStates[elementType]) {
+        console.warn(`Element state not found for ${elementType}, creating new state`);
+        const defaultPos = getDefaultPosition(elementType);
+        const defaultFontSize = getDefaultFontSize(elementType);
+        
+        elementStates[elementType] = {
+            xPercent: defaultPos.x,
+            yPercent: defaultPos.y,
+            fontSize: defaultFontSize,
+            lockHorizontal: false,
+            lockVertical: false,
+            isVisible: true,
+            lastUpdated: Date.now()
+        };
+    }
+    
+    // Validate and apply updates
+    const validatedUpdates = validateStateValues(elementType, updates);
+    Object.assign(elementStates[elementType], validatedUpdates);
+    elementStates[elementType].lastUpdated = Date.now();
+    
+    // Sync changes to all slides only if requested (performance optimization)
+    if (syncToSlides) {
+        syncStateToSlides(elementType);
+    }
+    
+    // console.log(`Updated state for ${elementType}:`, elementStates[elementType]);
+}
+
+// Validate state values to ensure they're within acceptable ranges
+function validateStateValues(elementType, updates) {
+    const validated = {};
+    
+    // Validate position percentages (0-100)
+    if (updates.xPercent !== undefined) {
+        validated.xPercent = clampPosition(updates.xPercent, 0, 100);
+    }
+    
+    if (updates.yPercent !== undefined) {
+        validated.yPercent = clampPosition(updates.yPercent, 0, 100);
+    }
+    
+    // Validate font size (12-72px)
+    if (updates.fontSize !== undefined) {
+        validated.fontSize = clampPosition(updates.fontSize, 12, 72);
+    }
+    
+    // Validate boolean values
+    if (updates.lockHorizontal !== undefined) {
+        validated.lockHorizontal = Boolean(updates.lockHorizontal);
+    }
+    
+    if (updates.lockVertical !== undefined) {
+        validated.lockVertical = Boolean(updates.lockVertical);
+    }
+    
+    if (updates.isVisible !== undefined) {
+        validated.isVisible = Boolean(updates.isVisible);
+    }
+    
+    return validated;
+}
+
+// Clamp values within specified range
+function clampPosition(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+// Conversion utilities
+function percentToPixels(percent, containerSize) {
+    return (percent / 100) * containerSize;
+}
+
+function pixelsToPercent(pixels, containerSize) {
+    return (pixels / containerSize) * 100;
+}
+
+function getContainerDimensions(slideIndex = 0) {
+    const slide = document.querySelector(`.swiper-slide:nth-child(${slideIndex + 1}) .certificate-preview`);
+    if (slide) {
+        const rect = slide.getBoundingClientRect();
+        return {
+            width: rect.width,
+            height: rect.height
+        };
+    }
+    
+    // Fallback to calculated dimensions
+    return calculateSlideDimensions();
+}
+
+// Enhanced synchronization function
+function syncStateToSlides(elementType) {
+    const elements = document.querySelectorAll(`[id^="${elementType}-"]`);
+    const state = elementStates[elementType];
+    
+    if (!state) {
+        console.warn(`No state found for element type: ${elementType}`);
+        return;
+    }
+    
+    elements.forEach(element => {
+        // Get the certificate container to calculate dimensions
+        const certificateContainer = element.closest('.certificate-preview');
+        if (certificateContainer) {
+            const containerRect = certificateContainer.getBoundingClientRect();
+            const pixelX = percentToPixels(state.xPercent, containerRect.width);
+            const pixelY = percentToPixels(state.yPercent, containerRect.height);
+            
+            // Apply position
+            element.style.left = `${pixelX}px`;
+            element.style.top = `${pixelY}px`;
+            element.dataset.centerX = pixelX;
+            element.dataset.centerY = pixelY;
+            
+            // Apply font size
+            element.style.fontSize = `${state.fontSize}px`;
+            
+            // Apply visibility
+            element.style.display = state.isVisible ? 'block' : 'none';
+            
+            // Center the element manually after positioning
+            centerElementManually(element);
+        }
+    });
+}
+
+// Performance-optimized function to update only the dragged element
+function updateDraggedElementPosition(elementType, xPercent, yPercent) {
+    // Update state without syncing to all slides
+    updateElementState(elementType, { xPercent, yPercent }, false);
+    
+    // Update only the currently dragged element
+    const draggedElement = dragState.currentElement;
+    if (draggedElement) {
+        const container = draggedElement.closest('.certificate-preview');
+        if (container) {
+            const containerRect = cachedContainerDimensions || container.getBoundingClientRect();
+            const pixelX = percentToPixels(xPercent, containerRect.width);
+            const pixelY = percentToPixels(yPercent, containerRect.height);
+            
+            draggedElement.style.left = `${pixelX}px`;
+            draggedElement.style.top = `${pixelY}px`;
+            draggedElement.dataset.centerX = pixelX;
+            draggedElement.dataset.centerY = pixelY;
+            
+            // Center the element manually
+            centerElementManually(draggedElement);
+        }
+    }
+}
+
+// Function to detect all available elements in the first slide
+function detectAvailableElements() {
+    const firstSlide = document.querySelector('.swiper-slide .certificate-preview');
+    if (!firstSlide) {
+        console.warn('No first slide found for element detection');
+        return [];
+    }
+    
+    const elements = firstSlide.querySelectorAll('div[id]');
+    const elementTypes = new Set();
+    
+    elements.forEach(element => {
+        // Extract element type from ID (format: elementType-slideIndex)
+        const id = element.id;
+        if (id && id.includes('-')) {
+            const lastDashIndex = id.lastIndexOf('-');
+            const elementType = id.substring(0, lastDashIndex);
+            elementTypes.add(elementType);
+        }
+    });
+    
+    return Array.from(elementTypes);
+}
+
+// DIRECT INTERACTION FEATURES
+
+// Enhanced click-to-select and drag functionality
+function addElementClickListeners() {
+    // Add click and drag listeners to all certificate elements
+    const allElements = document.querySelectorAll('.certificate-preview div[id]');
+    allElements.forEach(element => {
+        element.addEventListener('click', handleElementClick);
+        element.addEventListener('mousedown', handleElementMouseDown);
+    });
+}
+
+function handleElementClick(event) {
+    // Only handle click if not dragging
+    if (!dragState.isDragging) {
+        event.stopPropagation();
+        const elementType = getElementTypeFromElement(event.target);
+        if (elementType) {
+            selectElement(elementType);
+        }
+    }
+}
+
+function getElementTypeFromElement(element) {
+    // Extract element type from ID (format: elementType-slideIndex)
+    const id = element.id;
+    if (id && id.includes('-')) {
+        const lastDashIndex = id.lastIndexOf('-');
+        return id.substring(0, lastDashIndex);
+    }
+    return null;
+}
+
+// Enhanced drag functionality with offset tracking and performance optimization
+function handleElementMouseDown(event) {
+    // Only start drag if this element is selected
+    const elementType = getElementTypeFromElement(event.target);
+    if (elementType !== currentSelectedElement) {
+        return; // Let click handler select the element first
+    }
+    
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const container = event.target.closest('.certificate-preview');
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = event.target.getBoundingClientRect();
+    
+    // Cache container dimensions for performance
+    cachedContainerDimensions = containerRect;
+    
+    // Calculate the mouse position relative to the container
+    const mouseX = event.clientX - containerRect.left;
+    const mouseY = event.clientY - containerRect.top;
+    
+    // Calculate the element's current center position
+    const elementCenterX = elementRect.left + elementRect.width / 2 - containerRect.left;
+    const elementCenterY = elementRect.top + elementRect.height / 2 - containerRect.top;
+    
+    // Calculate the offset between mouse and element center
+    const offsetX = mouseX - elementCenterX;
+    const offsetY = mouseY - elementCenterY;
+    
+    // Store drag state with offset information
+    dragState.isDragging = true;
+    dragState.currentElement = event.target;
+    dragState.elementType = elementType;
+    dragState.startX = event.clientX;
+    dragState.startY = event.clientY;
+    dragState.initialOffsetX = offsetX;
+    dragState.initialOffsetY = offsetY;
+    dragState.initialElementX = elementCenterX;
+    dragState.initialElementY = elementCenterY;
+    
+    // Add global event listeners
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('mouseup', handleDragEnd);
+    
+    // Add dragging class and disable transitions
+    dragState.currentElement.classList.add('dragging');
+    
+    // Prevent text selection during drag
+    document.body.style.userSelect = 'none';
+}
+
+function handleDragMove(event) {
+    if (!dragState.isDragging) return;
+    
+    // Cancel any pending animation frame
+    if (dragState.animationFrameId) {
+        cancelAnimationFrame(dragState.animationFrameId);
+    }
+    
+    // Use requestAnimationFrame for smooth updates
+    dragState.animationFrameId = requestAnimationFrame(() => {
+        const container = dragState.currentElement.closest('.certificate-preview');
+        if (!container) return;
+        
+        // Use cached container dimensions for performance
+        const containerRect = cachedContainerDimensions || container.getBoundingClientRect();
+        
+        // Calculate mouse position relative to container
+        const mouseX = event.clientX - containerRect.left;
+        const mouseY = event.clientY - containerRect.top;
+        
+        // Calculate new element center position by subtracting the stored offset
+        const newElementCenterX = mouseX - dragState.initialOffsetX;
+        const newElementCenterY = mouseY - dragState.initialOffsetY;
+        
+        // Convert to percentages
+        const xPercent = (newElementCenterX / containerRect.width) * 100;
+        const yPercent = (newElementCenterY / containerRect.height) * 100;
+        
+        // Clamp to valid range
+        const clampedX = Math.max(0, Math.min(100, xPercent));
+        const clampedY = Math.max(0, Math.min(100, yPercent));
+        
+        // Update position immediately for smooth dragging (optimized)
+        updateDraggedElementPosition(dragState.elementType, clampedX, clampedY);
+        
+        // Don't update control widgets during drag for performance
+        // showControlWidgets(); // Removed - will update on drag end
+    });
+}
+
+function handleDragEnd(event) {
+    if (!dragState.isDragging) return;
+    
+    // Cancel any pending animation frame
+    if (dragState.animationFrameId) {
+        cancelAnimationFrame(dragState.animationFrameId);
+        dragState.animationFrameId = null;
+    }
+    
+    // Remove global event listeners
+    document.removeEventListener('mousemove', handleDragMove);
+    document.removeEventListener('mouseup', handleDragEnd);
+    
+    // Remove dragging class
+    dragState.currentElement.classList.remove('dragging');
+    
+    // Restore text selection
+    document.body.style.userSelect = '';
+    
+    // Sync position to all slides now that drag is complete
+    syncStateToSlides(dragState.elementType);
+    
+    // Update control widgets with final position
+    showControlWidgets();
+    
+    // Clear cached container dimensions
+    cachedContainerDimensions = null;
+    
+    // Reset drag state
+    dragState.isDragging = false;
+    dragState.currentElement = null;
+    dragState.elementType = null;
+    dragState.initialOffsetX = 0;
+    dragState.initialOffsetY = 0;
+    dragState.initialElementX = 0;
+    dragState.initialElementY = 0;
 }
 
 // Function to calculate slide dimensions based on image aspect ratio
@@ -125,23 +518,13 @@ function generateElementButtons() {
     // Clear existing buttons
     buttonsContainer.innerHTML = '';
     
-    // Get the first slide to analyze available elements
-    const firstSlide = document.querySelector('.swiper-slide .certificate-preview');
-    if (!firstSlide) return;
+    // Get available elements from state
+    const elementTypes = Object.keys(elementStates);
     
-    // Find all unique element types in the first slide
-    const elements = firstSlide.querySelectorAll('div');
-    const elementTypes = new Set();
-    
-    elements.forEach(element => {
-        // Extract element type from ID (format: elementType-slideIndex)
-        const id = element.id;
-        if (id && id.includes('-')) {
-            const lastDashIndex = id.lastIndexOf('-');
-            const elementType = id.substring(0, lastDashIndex);
-            elementTypes.add(elementType);
-        }
-    });
+    if (elementTypes.length === 0) {
+        console.warn('No element types found in state');
+        return;
+    }
     
     // Create buttons for each element type
     elementTypes.forEach(elementType => {
@@ -220,10 +603,24 @@ function showControlWidgets() {
     const controlWidgets = document.getElementById('control-widgets');
     if (controlWidgets && currentSelectedElement) {
         controlWidgets.classList.add('has-controls');
+        
+        // Get current state for display
+        const state = getElementState(currentSelectedElement);
+        const friendlyName = getElementFriendlyName(currentSelectedElement);
+        
         controlWidgets.innerHTML = `
             <div style="text-align: center; color: #007bff;">
-                <h4>Editing: ${getElementFriendlyName(currentSelectedElement)}</h4>
-                <p>Element controls will appear here in the next step.</p>
+                <h4>Editing: ${friendlyName}</h4>
+                <div class="state-info">
+                    <p><strong>Position:</strong> ${state.xPercent.toFixed(2)}%, ${state.yPercent.toFixed(2)}%</p>
+                    <p><strong>Font Size:</strong> ${state.fontSize}px</p>
+                    <p><strong>Locks:</strong> H:${state.lockHorizontal ? 'Yes' : 'No'}, V:${state.lockVertical ? 'Yes' : 'No'}</p>
+                </div>
+                <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
+                    <p style="margin: 0; font-size: 14px; color: #666;">
+                        💡 <strong>Tip:</strong> Click any element to select it, then click and drag to move it smoothly!
+                    </p>
+                </div>
             </div>
         `;
     }
@@ -296,6 +693,15 @@ export function generatePreviewSlider(selectedColumns, date, orientation) {
     // Initialize Swiper
     initializeSwiper();
     
+    // STEP 3: Initialize element states after slides are created
+    setTimeout(() => {
+        const availableElements = detectAvailableElements();
+        initializeElementStates(availableElements);
+        
+        // Add click listeners to all elements
+        addElementClickListeners();
+    }, 200);
+    
     // Show element controls after successful preview generation
     showElementControls();
 }
@@ -333,28 +739,29 @@ function initializeSwiper() {
             loop: false,
             centeredSlides: true,
 
-            // Navigation
+            // DISABLE touch/swipe interactions to prevent conflicts with drag system
+            allowTouchMove: false,        // Disable touch swiping
+            simulateTouch: false,         // Disable mouse drag simulation
+            touchRatio: 0,               // Disable touch sensitivity
+            grabCursor: false,           // Remove grab cursor
+
+            // KEEP navigation arrows
             navigation: {
                 nextEl: '.swiper-button-next',
                 prevEl: '.swiper-button-prev',
             },
 
-            // Pagination
+            // Pagination (visual only, not clickable)
             pagination: {
                 el: '.swiper-pagination',
-                clickable: true,
+                clickable: false,        // Disable pagination clicks
                 dynamicBullets: true,
             },
 
-            // Keyboard control
+            // DISABLE keyboard navigation to prevent conflicts
             keyboard: {
-                enabled: true,
+                enabled: false,          // Disable arrow key navigation
             },
-
-            // Touch/swipe settings
-            touchRatio: 1,
-            touchAngle: 45,
-            grabCursor: true,
 
             // Events
             on: {
@@ -582,17 +989,6 @@ function createTextElement(text, elementType, slideIndex = 0, containerDimension
     element.dataset.centerX = pixelX;
     element.dataset.centerY = pixelY;
     
-    // Initialize element state if not exists
-    if (!elementStates[elementType]) {
-        elementStates[elementType] = {
-            xPercent: positions.x,
-            yPercent: positions.y,
-            fontSize: getDefaultFontSize(elementType),
-            lockHorizontal: false,
-            lockVertical: false
-        };
-    }
-    
     return element;
 }
 
@@ -647,88 +1043,40 @@ export function scaleElement(elementSelector, fontSize) {
     }
 }
 
-// Position management functions (foundation for element controls)
+// Enhanced position management functions (Step 3)
 function getElementPosition(elementType) {
-    return elementStates[elementType] || getDefaultPosition(elementType);
+    const state = getElementState(elementType);
+    return state ? { x: state.xPercent, y: state.yPercent } : getDefaultPosition(elementType);
 }
 
 function setElementPosition(elementType, xPercent, yPercent) {
-    if (!elementStates[elementType]) {
-        elementStates[elementType] = {
-            xPercent: xPercent,
-            yPercent: yPercent,
-            fontSize: getDefaultFontSize(elementType),
-            lockHorizontal: false,
-            lockVertical: false
-        };
-    } else {
-        elementStates[elementType].xPercent = xPercent;
-        elementStates[elementType].yPercent = yPercent;
-    }
-    
-    // Update all elements of this type across all slides
-    updateElementsAcrossSlides(elementType);
+    updateElementState(elementType, { xPercent, yPercent });
 }
 
 function updateElementsAcrossSlides(elementType) {
-    const elements = document.querySelectorAll(`[id^="${elementType}-"]`);
-    const state = elementStates[elementType];
-    
-    if (state) {
-        elements.forEach(element => {
-            // Get the certificate container to calculate dimensions
-            const certificateContainer = element.closest('.certificate-preview');
-            if (certificateContainer) {
-                const containerRect = certificateContainer.getBoundingClientRect();
-                const pixelX = (containerRect.width * state.xPercent) / 100;
-                const pixelY = (containerRect.height * state.yPercent) / 100;
-                
-                element.style.left = `${pixelX}px`;
-                element.style.top = `${pixelY}px`;
-                element.dataset.centerX = pixelX;
-                element.dataset.centerY = pixelY;
-                
-                // Center the element manually
-                setTimeout(() => {
-                    centerElementManually(element);
-                }, 0);
-            }
-            
-            element.style.fontSize = `${state.fontSize}px`;
-        });
-    }
+    // This function is now handled by syncStateToSlides
+    syncStateToSlides(elementType);
 }
 
 function centerElementHorizontally(elementType) {
-    if (elementStates[elementType] && !elementStates[elementType].lockHorizontal) {
-        setElementPosition(elementType, 50, elementStates[elementType].yPercent);
+    const state = getElementState(elementType);
+    if (state && !state.lockHorizontal) {
+        updateElementState(elementType, { xPercent: 50 });
     }
 }
 
 function centerElementVertically(elementType) {
-    if (elementStates[elementType] && !elementStates[elementType].lockVertical) {
-        setElementPosition(elementType, elementStates[elementType].xPercent, 50);
+    const state = getElementState(elementType);
+    if (state && !state.lockVertical) {
+        updateElementState(elementType, { yPercent: 50 });
     }
 }
 
 function scaleElementByType(elementType, fontSize) {
-    if (!elementStates[elementType]) {
-        elementStates[elementType] = {
-            xPercent: getDefaultPosition(elementType).x,
-            yPercent: getDefaultPosition(elementType).y,
-            fontSize: fontSize,
-            lockHorizontal: false,
-            lockVertical: false
-        };
-    } else {
-        elementStates[elementType].fontSize = fontSize;
-    }
-    
-    // Update all elements of this type across all slides
-    updateElementsAcrossSlides(elementType);
+    updateElementState(elementType, { fontSize });
 }
 
-// Export new element selection functions
+// Export new element selection functions and Step 3 functions
 export {
     generateElementButtons,
     selectElement,
@@ -740,5 +1088,19 @@ export {
     centerElementHorizontally,
     centerElementVertically,
     scaleElementByType,
-    updateElementsAcrossSlides
+    updateElementsAcrossSlides,
+    // Step 3 exports
+    initializeElementStates,
+    getElementState,
+    updateElementState,
+    validateStateValues,
+    syncStateToSlides,
+    percentToPixels,
+    pixelsToPercent,
+    getContainerDimensions,
+    detectAvailableElements,
+    // Direct interaction exports
+    addElementClickListeners,
+    handleElementClick,
+    getElementTypeFromElement
 };

@@ -371,6 +371,22 @@ input[type="date"] {
     /* JavaScript handles left/top positioning based on element type */
 }
 
+/* Click-to-select styling for certificate elements */
+.certificate-preview div[id] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.certificate-preview div[id]:hover {
+    opacity: 0.8;
+    transform: scale(1.02);
+}
+
+.certificate-preview div[id]:active {
+    transform: scale(0.98);
+}
+
 .certificate-preview .name {
     font-size: 36px;
     font-weight: bold;
@@ -413,6 +429,39 @@ input[type="date"] {
     border: 2px dashed #007bff !important;
     background-color: rgba(0, 123, 255, 0.1) !important;
     transition: all 0.3s ease;
+    cursor: move !important;
+}
+
+/* Dragging state */
+.dragging {
+    opacity: 0.7;
+    z-index: 999;
+    transform: scale(1.05);
+    box-shadow: 0 8px 16px rgba(0, 123, 255, 0.3);
+    border: 2px solid #007bff !important;
+    background-color: rgba(0, 123, 255, 0.2) !important;
+}
+
+/* Enhanced visual feedback for draggable elements */
+.certificate-preview div[id] {
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+/* Disable transitions during drag for performance */
+.certificate-preview div[id].dragging {
+    transition: none !important;
+}
+
+.certificate-preview div[id]:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+.certificate-preview div[id].element-selected:hover {
+    opacity: 1;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
 }
 
 /* Element controls section */
@@ -489,6 +538,14 @@ input[type="date"] {
 #control-widgets.has-controls {
     color: initial;
     font-style: normal;
+}
+
+.state-info {
+    margin: 10px 0;
+}
+
+.state-info p {
+    margin: 5px 0;
 }
 
 /* Navigation styles */
@@ -582,6 +639,7 @@ input[type="date"] {
     #element-buttons-container {
         justify-content: center;
     }
+    
 }
 
 @media (max-width: 480px) {
@@ -615,5 +673,11 @@ input[type="date"] {
     #control-widgets {
         padding: 15px;
         min-height: 100px;
+    }
+    
+    /* Enhanced touch feedback for mobile */
+    .certificate-preview div[id].element-selected {
+        cursor: move !important;
+        touch-action: none;
     }
 }
