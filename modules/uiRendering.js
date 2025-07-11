@@ -66,7 +66,8 @@ let dragState = {
     initialOffsetY: 0,  // New: offset from mouse to element position
     initialElementX: 0, // New: element's initial position
     initialElementY: 0, // New: element's initial position
-    animationFrameId: null // For smooth updates
+    animationFrameId: null, // For smooth updates
+    hasMoved: false // Track if the mouse has actually moved during drag
 };
 
 // Function to get default positions for each element type
@@ -594,11 +595,14 @@ function handleDocumentClick(event) {
 }
 
 function handleElementClick(event) {
-    // Only handle click if not dragging
-    if (!dragState.isDragging) {
+    // Only handle click if we didn't drag
+    // If we dragged, the element is already selected from mousedown
+    if (!dragState.hasMoved) {
         event.stopPropagation();
         const elementType = getElementTypeFromElement(event.target);
         if (elementType) {
+            // If clicking on already selected element, keep it selected
+            // If clicking on a different element, select it
             selectElement(elementType);
         }
     }
@@ -616,10 +620,11 @@ function getElementTypeFromElement(element) {
 
 // Enhanced drag functionality with offset tracking and performance optimization
 function handleElementMouseDown(event) {
-    // Only start drag if this element is selected
     const elementType = getElementTypeFromElement(event.target);
+    
+    // Select the element if it's not already selected
     if (elementType !== currentSelectedElement) {
-        return; // Let click handler select the element first
+        selectElement(elementType);
     }
     
     event.preventDefault();
@@ -656,6 +661,7 @@ function handleElementMouseDown(event) {
     dragState.initialOffsetY = offsetY;
     dragState.initialElementX = elementCenterX;
     dragState.initialElementY = elementCenterY;
+    dragState.hasMoved = false; // Reset movement tracking
     
     // Add global event listeners
     document.addEventListener('mousemove', handleDragMove);
@@ -670,6 +676,9 @@ function handleElementMouseDown(event) {
 
 function handleDragMove(event) {
     if (!dragState.isDragging) return;
+    
+    // Mark that we've moved
+    dragState.hasMoved = true;
     
     // Cancel any pending animation frame
     if (dragState.animationFrameId) {
@@ -755,6 +764,7 @@ function handleDragEnd(event) {
     dragState.initialOffsetY = 0;
     dragState.initialElementX = 0;
     dragState.initialElementY = 0;
+    dragState.hasMoved = false;
 }
 
 // Function to calculate slide dimensions based on image aspect ratio
