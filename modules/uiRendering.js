@@ -15,6 +15,10 @@ let swiperInstance = null;
 // Element positioning state - Enhanced for Step 3
 let elementStates = {};
 
+// STEP 5: Theme Management State
+let currentTheme = 'usa-archery';
+let availableThemes = {};
+
 // Element selection state
 let currentSelectedElement = null;
 let isElementControlsVisible = false;
@@ -90,6 +94,8 @@ function initializeElementStates(availableElements) {
             xPercent: defaultPos.x,
             yPercent: defaultPos.y,
             fontSize: defaultFontSize,
+            theme: currentTheme,
+            color: getDefaultColorForTheme(currentTheme),
             lockHorizontal: false,
             lockVertical: false,
             isVisible: true,
@@ -116,6 +122,8 @@ function updateElementState(elementType, updates, syncToSlides = true) {
             xPercent: defaultPos.x,
             yPercent: defaultPos.y,
             fontSize: defaultFontSize,
+            theme: currentTheme,
+            color: getDefaultColorForTheme(currentTheme),
             lockHorizontal: false,
             lockVertical: false,
             isVisible: true,
@@ -152,6 +160,16 @@ function validateStateValues(elementType, updates) {
     // Validate font size (12-72px)
     if (updates.fontSize !== undefined) {
         validated.fontSize = clampPosition(updates.fontSize, 12, 72);
+    }
+    
+    // Validate theme and color
+    if (updates.theme !== undefined) {
+        validated.theme = availableThemes[updates.theme] ? updates.theme : currentTheme;
+    }
+    
+    if (updates.color !== undefined) {
+        const theme = updates.theme || elementStates[elementType]?.theme || currentTheme;
+        validated.color = validateColorForTheme(theme, updates.color);
     }
     
     // Validate boolean values
@@ -225,6 +243,9 @@ function syncStateToSlides(elementType) {
             // Apply font size
             element.style.fontSize = `${state.fontSize}px`;
             
+            // Apply theme color
+            applyThemeToElement(element, state.theme, state.color);
+            
             // Apply visibility
             element.style.display = state.isVisible ? 'block' : 'none';
             
@@ -281,6 +302,205 @@ function detectAvailableElements() {
     });
     
     return Array.from(elementTypes);
+}
+
+// STEP 5: Theme Management Functions
+
+// Load themes from JSON file
+async function loadThemes() {
+    try {
+        const response = await fetch('themes.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load themes: ${response.status}`);
+        }
+        const themeData = await response.json();
+        availableThemes = themeData.themes;
+        currentTheme = themeData.defaultTheme;
+        
+        console.log('Themes loaded successfully:', availableThemes);
+        return true;
+    } catch (error) {
+        console.error('Error loading themes:', error);
+        // Fall back to default theme structure
+        availableThemes = {
+            'usa-archery': {
+                name: 'USA Archery',
+                colors: {
+                    red: '#aa1e2e',
+                    blue: '#1c355e',
+                    black: '#000000',
+                    white: '#ffffff'
+                },
+                default: 'black'
+            }
+        };
+        currentTheme = 'usa-archery';
+        return false;
+    }
+}
+
+// Initialize the theme system
+async function initializeThemeSystem() {
+    await loadThemes();
+    console.log('Theme system initialized with theme:', currentTheme);
+}
+
+// Get theme colors for a specific theme
+function getThemeColors(themeId) {
+    return availableThemes[themeId]?.colors || {};
+}
+
+// Get theme color hex value
+function getThemeColor(themeId, colorKey) {
+    const colors = getThemeColors(themeId);
+    return colors[colorKey] || colors.black || '#000000';
+}
+
+// Get default color for a theme
+function getDefaultColorForTheme(themeId) {
+    return availableThemes[themeId]?.default || 'black';
+}
+
+// Validate color exists in theme
+function validateColorForTheme(themeId, colorKey) {
+    const colors = getThemeColors(themeId);
+    return colors[colorKey] ? colorKey : getDefaultColorForTheme(themeId);
+}
+
+// Set theme for an element
+function setElementTheme(elementType, themeId) {
+    if (!availableThemes[themeId]) {
+        console.warn(`Theme ${themeId} not found, using current theme`);
+        return;
+    }
+    
+    const defaultColor = getDefaultColorForTheme(themeId);
+    updateElementState(elementType, { theme: themeId, color: defaultColor });
+}
+
+// Set color for an element
+function setElementColor(elementType, colorKey) {
+    const state = getElementState(elementType);
+    if (!state) {
+        console.warn(`Element state not found for ${elementType}`);
+        return;
+    }
+    
+    const validatedColor = validateColorForTheme(state.theme, colorKey);
+    updateElementState(elementType, { color: validatedColor });
+}
+
+// Apply theme color to DOM element with slide-specific behavior
+function applyThemeToElement(element, themeId, colorKey) {
+    const slideContainer = element.closest('.swiper-slide');
+    const isExampleSlide = slideContainer?.classList.contains('example-slide') || 
+                           slideContainer?.querySelector('h3')?.textContent?.includes('Example');
+    
+    const color = getThemeColor(themeId, colorKey);
+    
+    if (isExampleSlide) {
+        // Example slide - ensure visibility with background/shadow
+        element.style.color = color;
+        element.style.textShadow = '2px 2px 4px rgba(255,255,255,0.8)';
+        element.style.background = 'rgba(255,255,255,0.8)';
+    } else {
+        // Certificate data slides - pure theme color
+        element.style.color = color;
+        // Remove any visibility aids
+        element.style.textShadow = '';
+        element.style.background = '';
+    }
+}
+
+// Generate color buttons for a theme
+function generateColorButtons(themeId) {
+    const colors = getThemeColors(themeId);
+    const paletteContainer = document.getElementById('color-palette');
+    
+    if (!paletteContainer) return;
+    
+    // Clear existing buttons
+    paletteContainer.innerHTML = '';
+    
+    // Create color buttons
+    Object.entries(colors).forEach(([colorKey, colorValue]) => {
+        const button = document.createElement('button');
+        button.classList.add('color-button');
+        button.style.backgroundColor = colorValue;
+        button.style.border = colorValue === '#ffffff' ? '2px solid #ccc' : '2px solid transparent';
+        button.title = colorKey.charAt(0).toUpperCase() + colorKey.slice(1);
+        button.dataset.colorKey = colorKey;
+        
+        // Add click event listener
+        button.addEventListener('click', () => {
+            if (currentSelectedElement) {
+                setElementColor(currentSelectedElement, colorKey);
+                updateColorSelection(currentSelectedElement);
+            }
+        });
+        
+        paletteContainer.appendChild(button);
+    });
+}
+
+// Update color selection display
+function updateColorSelection(elementType) {
+    const state = getElementState(elementType);
+    if (!state) return;
+    
+    // Update theme dropdown
+    const themeSelector = document.getElementById('theme-selector');
+    if (themeSelector) {
+        themeSelector.value = state.theme;
+    }
+    
+    // Update color button selection
+    const colorButtons = document.querySelectorAll('.color-button');
+    colorButtons.forEach(button => {
+        if (button.dataset.colorKey === state.color) {
+            button.classList.add('selected');
+        } else {
+            button.classList.remove('selected');
+        }
+    });
+}
+
+// Initialize theme event listeners
+function initializeThemeEventListeners() {
+    const themeSelector = document.getElementById('theme-selector');
+    
+    if (themeSelector) {
+        themeSelector.addEventListener('change', (e) => {
+            const newTheme = e.target.value;
+            if (currentSelectedElement && availableThemes[newTheme]) {
+                // Update element to new theme with default color
+                setElementTheme(currentSelectedElement, newTheme);
+                
+                // Regenerate color buttons for new theme
+                generateColorButtons(newTheme);
+                
+                // Update color selection display
+                updateColorSelection(currentSelectedElement);
+            }
+        });
+    }
+}
+
+// Generate theme dropdown options
+function generateThemeOptions() {
+    const themeSelector = document.getElementById('theme-selector');
+    if (!themeSelector) return;
+    
+    // Clear existing options
+    themeSelector.innerHTML = '';
+    
+    // Create options for each theme
+    Object.entries(availableThemes).forEach(([themeId, theme]) => {
+        const option = document.createElement('option');
+        option.value = themeId;
+        option.textContent = theme.name;
+        themeSelector.appendChild(option);
+    });
 }
 
 // DIRECT INTERACTION FEATURES
@@ -643,6 +863,22 @@ function showControlWidgets() {
                 <h4>Editing: ${friendlyName}</h4>
             </div>
             
+            <div class="theme-controls">
+                <div class="theme-selection">
+                    <label>Theme:</label>
+                    <select id="theme-selector" class="theme-dropdown">
+                        <!-- Options populated by generateThemeOptions() -->
+                    </select>
+                </div>
+                
+                <div class="color-selection">
+                    <label>Text Color:</label>
+                    <div class="color-palette" id="color-palette">
+                        <!-- Color buttons generated by generateColorButtons() -->
+                    </div>
+                </div>
+            </div>
+            
             <div class="position-controls">
                 <div class="control-group">
                     <label>X Position: <span class="slider-value" id="x-position-display">${state.xPercent.toFixed(2)}%</span></label>
@@ -662,8 +898,14 @@ function showControlWidgets() {
             </div>
         `;
         
-        // Initialize slider event listeners
+        // Initialize theme system components
+        generateThemeOptions();
+        generateColorButtons(state.theme);
+        updateColorSelection(currentSelectedElement);
+        
+        // Initialize event listeners
         initializeSliderEventListeners();
+        initializeThemeEventListeners();
     }
 }
 
@@ -848,8 +1090,12 @@ export function generatePreviewSlider(selectedColumns, date, orientation) {
     // Initialize Swiper
     initializeSwiper();
     
-    // STEP 3: Initialize element states after slides are created
-    setTimeout(() => {
+    // STEP 3 & 5: Initialize theme system and element states after slides are created
+    setTimeout(async () => {
+        // Initialize theme system first
+        await initializeThemeSystem();
+        
+        // Then initialize element states (which now includes theme data)
         const availableElements = detectAvailableElements();
         initializeElementStates(availableElements);
         
@@ -1264,5 +1510,17 @@ export {
     // Step 4 exports
     initializeSliderEventListeners,
     handleSliderChange,
-    updateSliderValues
+    updateSliderValues,
+    // Step 5 theme exports
+    loadThemes,
+    initializeThemeSystem,
+    getThemeColors,
+    getThemeColor,
+    setElementTheme,
+    setElementColor,
+    applyThemeToElement,
+    generateColorButtons,
+    generateThemeOptions,
+    updateColorSelection,
+    initializeThemeEventListeners
 };

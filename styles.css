@@ -672,6 +672,100 @@ input[type="date"] {
     margin: 0;
 }
 
+/* Theme Controls Styling */
+.theme-controls {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.theme-selection {
+    margin-bottom: 20px;
+}
+
+.theme-selection label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.theme-dropdown {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 14px;
+    background: white;
+    cursor: pointer;
+}
+
+.theme-dropdown:hover {
+    border-color: #007bff;
+}
+
+.theme-dropdown:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.color-selection label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.color-palette {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.color-button {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    padding: 0;
+    margin: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.color-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.color-button.selected {
+    border: 3px solid #007bff;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+}
+
+.color-button:focus {
+    outline: none;
+    border: 3px solid #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.3);
+}
+
+/* Special styling for white color button */
+.color-button[style*="background-color: rgb(255, 255, 255)"],
+.color-button[style*="background-color: #ffffff"] {
+    border: 2px solid #ccc !important;
+}
+
+.color-button[style*="background-color: rgb(255, 255, 255)"].selected,
+.color-button[style*="background-color: #ffffff"].selected {
+    border: 3px solid #007bff !important;
+}
+
 /* Navigation styles */
 .swiper-button-next,
 .swiper-button-prev {
@@ -836,5 +930,39 @@ input[type="date"] {
     .usage-tip {
         font-size: 12px;
         padding: 8px;
+    }
+    
+    /* Theme controls mobile responsiveness */
+    .theme-controls {
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .theme-selection label,
+    .color-selection label {
+        font-size: 14px;
+    }
+    
+    .theme-dropdown {
+        font-size: 14px;
+        padding: 10px;
+    }
+    
+    .color-palette {
+        gap: 8px;
+    }
+    
+    .color-button {
+        width: 36px;
+        height: 36px;
+        border-radius: 6px;
+    }
+    
+    .color-button:hover {
+        transform: scale(1.05);
+    }
+    
+    .color-button.selected {
+        transform: scale(1.05);
     }
 }

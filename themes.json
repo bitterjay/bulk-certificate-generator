@@ -1,0 +1,38 @@
+{
+  "themes": {
+    "usa-archery": {
+      "name": "USA Archery",
+      "description": "Official USA Archery brand colors",
+      "colors": {
+        "red": "#aa1e2e",
+        "blue": "#1c355e", 
+        "black": "#000000",
+        "white": "#ffffff"
+      },
+      "default": "black"
+    },
+    "classic": {
+      "name": "Classic",
+      "description": "Traditional certificate colors",
+      "colors": {
+        "red": "#8B0000",
+        "blue": "#000080",
+        "black": "#000000",
+        "white": "#ffffff"
+      },
+      "default": "black"
+    },
+    "modern": {
+      "name": "Modern",
+      "description": "Contemporary color palette",
+      "colors": {
+        "red": "#E53E3E",
+        "blue": "#3182CE",
+        "black": "#2D3748",
+        "white": "#ffffff"
+      },
+      "default": "black"
+    }
+  },
+  "defaultTheme": "usa-archery"
+}
