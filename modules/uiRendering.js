@@ -9,6 +9,35 @@ function sanitizeClassName(columnName) {
         .replace(/[^a-zA-Z0-9-_]/g, ''); // Remove invalid characters
 }
 
+// Helper function to format date from yyyy-mm-dd to mm/dd/yyyy
+function formatDateForDisplay(dateString) {
+    if (!dateString) return '';
+    
+    try {
+        // Handle both yyyy-mm-dd and already formatted dates
+        if (dateString.includes('/')) {
+            return dateString; // Already in mm/dd/yyyy format
+        }
+        
+        // Parse yyyy-mm-dd format
+        const [year, month, day] = dateString.split('-');
+        
+        // Validate the parts
+        if (!year || !month || !day) {
+            return dateString; // Return original if parsing fails
+        }
+        
+        // Format as mm/dd/yyyy with zero-padding
+        const formattedMonth = month.padStart(2, '0');
+        const formattedDay = day.padStart(2, '0');
+        
+        return `${formattedMonth}/${formattedDay}/${year}`;
+    } catch (error) {
+        console.warn('Error formatting date:', error);
+        return dateString; // Return original date if formatting fails
+    }
+}
+
 // Global variable to store the Swiper instance
 let swiperInstance = null;
 
@@ -1101,10 +1130,10 @@ export function generatePreviewSlider(selectedColumns, date, orientation) {
         
         // Add click listeners to all elements
         addElementClickListeners();
+        
+        // Show element controls after states are initialized
+        showElementControls();
     }, 200);
-    
-    // Show element controls after successful preview generation
-    showElementControls();
 }
 
 function updateSwiperContainerHeight(height) {
@@ -1244,8 +1273,8 @@ function createExampleSlide(selectedColumns, slideDimensions) {
         certificateContainer.appendChild(columnElement);
     });
 
-    // Add date element
-    const dateElement = createTextElement('December 31, 2024', 'date-element', 0, slideDimensions);
+    // Add date element with formatted date
+    const dateElement = createTextElement('12/31/2024', 'date-element', 0, slideDimensions);
     certificateContainer.appendChild(dateElement);
     
     // Center all elements manually after they are added to DOM
@@ -1331,8 +1360,9 @@ function createCertificateSlide(row, selectedColumns, date, orientation, index, 
         }
     });
 
-    // Add date element
-    const dateElement = createTextElement(date || '', 'date-element', index + 1, slideDimensions);
+    // Add date element with formatted date
+    const formattedDate = formatDateForDisplay(date);
+    const dateElement = createTextElement(formattedDate || '', 'date-element', index + 1, slideDimensions);
     certificateContainer.appendChild(dateElement);
     
     // Center all elements manually after they are added to DOM
