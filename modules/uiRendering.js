@@ -293,6 +293,36 @@ function addElementClickListeners() {
         element.addEventListener('click', handleElementClick);
         element.addEventListener('mousedown', handleElementMouseDown);
     });
+    
+    // Add document click listener for click-outside-to-deselect
+    addDocumentClickListener();
+}
+
+// Function to add document-level click listener for deselection
+function addDocumentClickListener() {
+    // Remove existing listener if present to prevent duplicates
+    document.removeEventListener('click', handleDocumentClick);
+    document.addEventListener('click', handleDocumentClick);
+}
+
+// Handle clicks outside of elements to deselect
+function handleDocumentClick(event) {
+    // Don't deselect during drag operations
+    if (dragState.isDragging) return;
+    
+    // Don't deselect if no element is currently selected
+    if (!currentSelectedElement) return;
+    
+    // Check if click is on certificate elements, controls, or buttons
+    const isClickOnCertificate = event.target.closest('.certificate-preview');
+    const isClickOnControls = event.target.closest('#element-controls');
+    const isClickOnElement = event.target.closest('.certificate-preview div[id]');
+    const isClickOnButton = event.target.closest('button');
+    
+    // Deselect if click is outside certificate area and not on controls/buttons
+    if (!isClickOnCertificate && !isClickOnControls && !isClickOnButton) {
+        clearElementSelection();
+    }
 }
 
 function handleElementClick(event) {
@@ -609,20 +639,31 @@ function showControlWidgets() {
         const friendlyName = getElementFriendlyName(currentSelectedElement);
         
         controlWidgets.innerHTML = `
-            <div style="text-align: center; color: #007bff;">
+            <div class="control-header">
                 <h4>Editing: ${friendlyName}</h4>
-                <div class="state-info">
-                    <p><strong>Position:</strong> ${state.xPercent.toFixed(2)}%, ${state.yPercent.toFixed(2)}%</p>
-                    <p><strong>Font Size:</strong> ${state.fontSize}px</p>
-                    <p><strong>Locks:</strong> H:${state.lockHorizontal ? 'Yes' : 'No'}, V:${state.lockVertical ? 'Yes' : 'No'}</p>
+            </div>
+            
+            <div class="position-controls">
+                <div class="control-group">
+                    <label>X Position: <span class="slider-value" id="x-position-display">${state.xPercent.toFixed(2)}%</span></label>
+                    <input type="range" id="x-position-slider" class="control-slider" 
+                           min="0" max="100" step="0.01" value="${state.xPercent.toFixed(2)}">
                 </div>
-                <div style="margin-top: 15px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                    <p style="margin: 0; font-size: 14px; color: #666;">
-                        💡 <strong>Tip:</strong> Click any element to select it, then click and drag to move it smoothly!
-                    </p>
+                
+                <div class="control-group">
+                    <label>Y Position: <span class="slider-value" id="y-position-display">${state.yPercent.toFixed(2)}%</span></label>
+                    <input type="range" id="y-position-slider" class="control-slider" 
+                           min="0" max="100" step="0.01" value="${state.yPercent.toFixed(2)}">
                 </div>
             </div>
+            
+            <div class="usage-tip">
+                <p>💡 <strong>Tip:</strong> Use sliders for precise positioning, or click and drag elements directly!</p>
+            </div>
         `;
+        
+        // Initialize slider event listeners
+        initializeSliderEventListeners();
     }
 }
 
@@ -667,6 +708,120 @@ function handleSlideChange() {
         setTimeout(() => {
             applyElementHighlighting(currentSelectedElement);
         }, 100);
+    }
+}
+
+// Step 4: Slider Event Handling Functions
+
+function initializeSliderEventListeners() {
+    const xSlider = document.getElementById('x-position-slider');
+    const ySlider = document.getElementById('y-position-slider');
+    
+    if (xSlider && ySlider) {
+        // Handle real-time slider movement (input event)
+        xSlider.addEventListener('input', (e) => handleSliderChange('x', e.target.value));
+        ySlider.addEventListener('input', (e) => handleSliderChange('y', e.target.value));
+        
+        // Handle slider release (change event) - ensure final sync
+        xSlider.addEventListener('change', (e) => {
+            clearTimeout(sliderSyncTimeout);
+            syncStateToSlides(currentSelectedElement);
+        });
+        ySlider.addEventListener('change', (e) => {
+            clearTimeout(sliderSyncTimeout);
+            syncStateToSlides(currentSelectedElement);
+        });
+    }
+}
+
+// Debouncing for slider sync
+let sliderSyncTimeout = null;
+
+function handleSliderChange(axis, value) {
+    if (currentSelectedElement) {
+        const numericValue = parseFloat(value);
+        
+        // Update display immediately
+        if (axis === 'x') {
+            document.getElementById('x-position-display').textContent = `${numericValue.toFixed(2)}%`;
+        } else {
+            document.getElementById('y-position-display').textContent = `${numericValue.toFixed(2)}%`;
+        }
+        
+        // Update only the currently selected elements immediately (no sync)
+        updateSelectedElementPosition(axis, numericValue);
+        
+        // Update state without syncing to all slides
+        const updates = {};
+        if (axis === 'x') {
+            updates.xPercent = numericValue;
+        } else {
+            updates.yPercent = numericValue;
+        }
+        updateElementState(currentSelectedElement, updates, false); // false = don't sync
+        
+        // Debounce sync to all slides for performance
+        clearTimeout(sliderSyncTimeout);
+        sliderSyncTimeout = setTimeout(() => {
+            syncStateToSlides(currentSelectedElement);
+        }, 50); // Sync after 50ms of no slider movement
+    }
+}
+
+// Optimized function to update only selected elements during slider movement
+function updateSelectedElementPosition(axis, value) {
+    const elements = document.querySelectorAll(`[id^="${currentSelectedElement}-"]`);
+    
+    elements.forEach(element => {
+        // Add class to disable transitions for frictionless movement
+        element.classList.add('slider-updating');
+        
+        const container = element.closest('.certificate-preview');
+        if (container) {
+            const containerRect = container.getBoundingClientRect();
+            const state = getElementState(currentSelectedElement);
+            
+            let newX = state.xPercent;
+            let newY = state.yPercent;
+            
+            if (axis === 'x') {
+                newX = value;
+            } else {
+                newY = value;
+            }
+            
+            const pixelX = percentToPixels(newX, containerRect.width);
+            const pixelY = percentToPixels(newY, containerRect.height);
+            
+            element.style.left = `${pixelX}px`;
+            element.style.top = `${pixelY}px`;
+            element.dataset.centerX = pixelX;
+            element.dataset.centerY = pixelY;
+            
+            centerElementManually(element);
+        }
+        
+        // Remove the class after a short delay to re-enable transitions
+        setTimeout(() => {
+            element.classList.remove('slider-updating');
+        }, 100);
+    });
+}
+
+function updateSliderValues(elementType) {
+    const state = getElementState(elementType);
+    if (state) {
+        const xSlider = document.getElementById('x-position-slider');
+        const ySlider = document.getElementById('y-position-slider');
+        const xDisplay = document.getElementById('x-position-display');
+        const yDisplay = document.getElementById('y-position-display');
+        
+        if (xSlider && ySlider && xDisplay && yDisplay) {
+            xSlider.value = state.xPercent.toFixed(2);
+            ySlider.value = state.yPercent.toFixed(2);
+            xDisplay.textContent = `${state.xPercent.toFixed(2)}%`;
+            yDisplay.textContent = `${state.yPercent.toFixed(2)}%`;
+        }
     }
 }
 
@@ -809,14 +964,14 @@ function createExampleSlide(selectedColumns, slideDimensions) {
     certificateContainer.style.width = `${slideDimensions.width}px`;
     certificateContainer.style.height = `${slideDimensions.height}px`;
 
-    // Create elements with maximum possible content using absolute positioning
-    const nameElement = createTextElement('Longest Possible Name', 'name-element', 0, slideDimensions);
+    // Create elements with clean example content using absolute positioning
+    const nameElement = createTextElement('Name', 'name-element', 0, slideDimensions);
     certificateContainer.appendChild(nameElement);
 
     // Create concatenated column element
     if (selectedColumns.length > 0) {
         const concatenatedElement = createTextElement(
-            selectedColumns.map(col => 'Longest ' + col).join(' - '), 
+            selectedColumns.map(col => col).join(' - '), 
             'concatenated-element', 0, slideDimensions
         );
         certificateContainer.appendChild(concatenatedElement);
@@ -828,7 +983,7 @@ function createExampleSlide(selectedColumns, slideDimensions) {
     
     remainingColumns.forEach((col, index) => {
         const elementType = sanitizeClassName(col) + '-element';
-        const columnElement = createTextElement(`Longest ${col} Content`, elementType, 0, slideDimensions);
+        const columnElement = createTextElement(col, elementType, 0, slideDimensions);
         
         // Apply distributed position for additional elements
         const position = getDistributedPosition(elementType, index);
@@ -969,6 +1124,7 @@ function createTextElement(text, elementType, slideIndex = 0, containerDimension
     }
     
     element.classList.add(cssClass);
+    element.classList.add('element'); // Add shared class for all certificate elements
     
     // Add unique ID for each element instance
     element.id = `${elementType}-${slideIndex}`;
@@ -1102,5 +1258,11 @@ export {
     // Direct interaction exports
     addElementClickListeners,
     handleElementClick,
-    getElementTypeFromElement
+    getElementTypeFromElement,
+    addDocumentClickListener,
+    handleDocumentClick,
+    // Step 4 exports
+    initializeSliderEventListeners,
+    handleSliderChange,
+    updateSliderValues
 };

@@ -323,6 +323,14 @@ input[type="date"] {
     display: none; /* Hidden by default */
 }
 
+/* Box-sizing fix for all slider elements */
+.swiper,
+.swiper-slide,
+.certificate-preview,
+.certificate-preview * {
+    box-sizing: border-box;
+}
+
 .swiper {
     width: 100%;
     padding-top: 20px;
@@ -378,14 +386,14 @@ input[type="date"] {
     user-select: none;
 }
 
-.certificate-preview div[id]:hover {
+/* .certificate-preview div[id]:hover:not(.dragging) {
     opacity: 0.8;
     transform: scale(1.02);
 }
 
-.certificate-preview div[id]:active {
+.certificate-preview div[id]:active:not(.dragging) {
     transform: scale(0.98);
-}
+} */
 
 .certificate-preview .name {
     font-size: 36px;
@@ -395,6 +403,8 @@ input[type="date"] {
     background: rgba(255,255,255,0.8);
     padding: 10px 20px;
     border-radius: 5px;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .certificate-preview .concatenated {
@@ -404,6 +414,8 @@ input[type="date"] {
     background: rgba(255,255,255,0.7);
     padding: 8px 16px;
     border-radius: 5px;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .certificate-preview .date {
@@ -412,6 +424,8 @@ input[type="date"] {
     background: rgba(255,255,255,0.8);
     padding: 5px 10px;
     border-radius: 5px;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 /* Additional element types - styling for individual column elements */
@@ -422,24 +436,32 @@ input[type="date"] {
     padding: 6px 12px;
     border-radius: 5px;
     text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 /* Element selection highlighting */
 .element-selected {
-    border: 2px dashed #007bff !important;
+    /* border: 2px dashed #007bff !important; */
     background-color: rgba(0, 123, 255, 0.1) !important;
     transition: all 0.3s ease;
     cursor: move !important;
 }
 
-/* Dragging state */
+/* Dragging state - NO scale transforms to prevent jumping */
 .dragging {
-    opacity: 0.7;
+    opacity: 0.8;
     z-index: 999;
-    transform: scale(1.05);
-    box-shadow: 0 8px 16px rgba(0, 123, 255, 0.3);
-    border: 2px solid #007bff !important;
-    background-color: rgba(0, 123, 255, 0.2) !important;
+    /* border: 2px solid #007bff !important; */
+    background-color: rgba(0, 123, 255, 0.1) !important;
+    /* Removed transform: scale() and box-shadow to prevent jumping */
+}
+
+/* Disable hover/active effects during drag to prevent jumping */
+.certificate-preview div[id].dragging:hover,
+.certificate-preview div[id].dragging:active {
+    transform: none !important;
+    opacity: 0.8 !important;
 }
 
 /* Enhanced visual feedback for draggable elements */
@@ -453,18 +475,28 @@ input[type="date"] {
     transition: none !important;
 }
 
-.certificate-preview div[id]:hover {
+/* Disable transitions during slider updates for frictionless movement */
+.certificate-preview div[id].slider-updating {
+    transition: none !important;
+}
+
+/* .certificate-preview div[id]:hover:not(.dragging) {
     opacity: 0.9;
     transform: scale(1.02);
 }
 
-.certificate-preview div[id].element-selected:hover {
+.certificate-preview div[id].element-selected:hover:not(.dragging) {
     opacity: 1;
     transform: scale(1.02);
     box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
-}
+} */
 
 /* Element controls section */
+
+.element {
+    box-sizing: border-box;
+}
+
 #element-controls {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
@@ -546,6 +578,98 @@ input[type="date"] {
 
 .state-info p {
     margin: 5px 0;
+}
+
+/* Position Controls Styling */
+.position-controls {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.control-group {
+    margin-bottom: 15px;
+}
+
+.control-group:last-child {
+    margin-bottom: 0;
+}
+
+.control-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.control-slider {
+    width: 100%;
+    height: 6px;
+    background: #ddd;
+    border-radius: 3px;
+    outline: none;
+    accent-color: #007bff;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.control-slider:hover {
+    background: #ccc;
+}
+
+.control-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.control-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #007bff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider-value {
+    float: right;
+    font-weight: bold;
+    color: #007bff;
+    font-family: monospace;
+    font-size: 14px;
+}
+
+.control-header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.control-header h4 {
+    color: #007bff;
+    margin: 0;
+}
+
+.usage-tip {
+    margin-top: 15px;
+    padding: 10px;
+    background: #e3f2fd;
+    border-radius: 5px;
+    font-size: 14px;
+    color: #666;
+    text-align: center;
+}
+
+.usage-tip p {
+    margin: 0;
 }
 
 /* Navigation styles */
@@ -679,5 +803,38 @@ input[type="date"] {
     .certificate-preview div[id].element-selected {
         cursor: move !important;
         touch-action: none;
+    }
+    
+    /* Position controls mobile responsiveness */
+    .position-controls {
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .control-group label {
+        font-size: 14px;
+    }
+    
+    .slider-value {
+        font-size: 12px;
+    }
+    
+    .control-slider {
+        height: 8px;
+    }
+    
+    .control-slider::-webkit-slider-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .control-slider::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .usage-tip {
+        font-size: 12px;
+        padding: 8px;
     }
 }
