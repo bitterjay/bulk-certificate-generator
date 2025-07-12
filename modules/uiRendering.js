@@ -38,6 +38,31 @@ function formatDateForDisplay(dateString) {
     }
 }
 
+// Helper function to create concatenated content with pipe spans
+function createConcatenatedContentWithSpans(columns) {
+    if (!columns || columns.length === 0) return '';
+    
+    return columns
+        .filter(col => col && col.toString().trim() !== '') // Filter out empty values
+        .join('   <span class="pipe-separator">|</span>   ');
+}
+
+// Helper function to ensure pipe spans exist in concatenated elements
+function ensurePipeSpans(element) {
+    if (!element || !element.innerHTML) return;
+    
+    // Check if element already has spans
+    if (element.querySelectorAll('.pipe-separator').length > 0) return;
+    
+    // If no spans found, convert plain text pipes to spans
+    const content = element.innerHTML;
+    if (content.includes('|')) {
+        // Replace plain pipes with span-wrapped pipes
+        const updatedContent = content.replace(/\s*\|\s*/g, '   <span class="pipe-separator">|</span>   ');
+        element.innerHTML = updatedContent;
+    }
+}
+
 // Global variable to store the Swiper instance
 let swiperInstance = null;
 
@@ -94,6 +119,18 @@ function getDefaultFontSize(elementType) {
     return fontSizes[elementType] || fontSizes['default'];
 }
 
+// Function to get default pipe color for each element type
+function getDefaultPipeColor(themeId) {
+    // Default pipe color is usually a lighter version of the main text color
+    const defaultPipeColors = {
+        'usa-archery': 'black',
+        'classic': 'black', 
+        'modern': 'black'
+    };
+    
+    return defaultPipeColors[themeId] || 'black';
+}
+
 // Function to distribute positions for additional elements to avoid overlap
 function getDistributedPosition(elementType, index) {
     // For additional elements (individual columns), distribute them vertically
@@ -115,14 +152,14 @@ function initializeElementStates(availableElements) {
     
     // Clear existing states
     elementStates = {};
-    
+
     // Initialize states for each element type
     availableElements.forEach(elementType => {
         const defaultPos = getDefaultPosition(elementType);
         const defaultFontSize = getDefaultFontSize(elementType);
         
-        // By default, don't lock horizontal movement (user can lock if needed)
-        const shouldLockHorizontal = true;
+        // Determine lock defaults based on element type
+        const shouldLockHorizontal = elementType !== 'date-element';
         
         elementStates[elementType] = {
             xPercent: defaultPos.x,
@@ -130,6 +167,7 @@ function initializeElementStates(availableElements) {
             fontSize: defaultFontSize,
             theme: currentTheme,
             color: getDefaultColorForTheme(currentTheme),
+            pipeColor: getDefaultPipeColor(currentTheme), // New: pipe separator color
             lockHorizontal: shouldLockHorizontal,
             lockVertical: false,
             isVisible: true,
@@ -159,6 +197,7 @@ function updateElementState(elementType, updates, syncToSlides = true) {
             fontSize: defaultFontSize,
             theme: currentTheme,
             color: getDefaultColorForTheme(currentTheme),
+            pipeColor: getDefaultPipeColor(currentTheme),
             lockHorizontal: false,
             lockVertical: false,
             isVisible: true,
@@ -176,7 +215,7 @@ function updateElementState(elementType, updates, syncToSlides = true) {
         syncStateToSlides(elementType);
     }
     
-    // console.log(`Updated state for ${elementType}:`, elementStates[elementType]);
+    console.log(`Updated state for ${elementType}:`, elementStates[elementType]);
 }
 
 // Validate state values to ensure they're within acceptable ranges
@@ -205,6 +244,12 @@ function validateStateValues(elementType, updates) {
     if (updates.color !== undefined) {
         const theme = updates.theme || elementStates[elementType]?.theme || currentTheme;
         validated.color = validateColorForTheme(theme, updates.color);
+    }
+    
+    // Validate pipe color
+    if (updates.pipeColor !== undefined) {
+        const theme = updates.theme || elementStates[elementType]?.theme || currentTheme;
+        validated.pipeColor = validateColorForTheme(theme, updates.pipeColor);
     }
     
     // Validate boolean values
@@ -255,7 +300,7 @@ function getContainerDimensions(slideIndex = 0) {
     return calculateSlideDimensions();
 }
 
-// Enhanced synchronization function
+// Enhanced synchronization function with pipe span preservation
 function syncStateToSlides(elementType) {
     const elements = document.querySelectorAll(`[id^="${elementType}-"]`);
     const state = elementStates[elementType];
@@ -287,6 +332,13 @@ function syncStateToSlides(elementType) {
             
             // Apply theme color
             applyThemeToElement(element, state.theme, state.color);
+            
+            // Apply pipe color if this is a concatenated element
+            if (elementType === 'concatenated-element') {
+                // Ensure pipe spans exist before applying color
+                ensurePipeSpans(element);
+                applyPipeColorToElement(element, state.theme, state.pipeColor);
+            }
             
             // Apply visibility
             element.style.display = state.isVisible ? 'block' : 'none';
@@ -417,7 +469,8 @@ function setElementTheme(elementType, themeId) {
     }
     
     const defaultColor = getDefaultColorForTheme(themeId);
-    updateElementState(elementType, { theme: themeId, color: defaultColor });
+    const defaultPipeColor = getDefaultPipeColor(themeId);
+    updateElementState(elementType, { theme: themeId, color: defaultColor, pipeColor: defaultPipeColor });
 }
 
 // Set color for an element
@@ -430,6 +483,18 @@ function setElementColor(elementType, colorKey) {
     
     const validatedColor = validateColorForTheme(state.theme, colorKey);
     updateElementState(elementType, { color: validatedColor });
+}
+
+// Set pipe color for an element
+function setPipeColor(elementType, colorKey) {
+    const state = getElementState(elementType);
+    if (!state) {
+        console.warn(`Element state not found for ${elementType}`);
+        return;
+    }
+    
+    const validatedColor = validateColorForTheme(state.theme, colorKey);
+    updateElementState(elementType, { pipeColor: validatedColor });
 }
 
 // Apply theme color to DOM element with slide-specific behavior
@@ -452,6 +517,16 @@ function applyThemeToElement(element, themeId, colorKey) {
         element.style.textShadow = '';
         element.style.background = '';
     }
+}
+
+// Apply pipe color to DOM element
+function applyPipeColorToElement(element, themeId, colorKey) {
+    const color = getThemeColor(themeId, colorKey);
+    const pipeSpans = element.querySelectorAll('.pipe-separator');
+    
+    pipeSpans.forEach(span => {
+        span.style.color = color;
+    });
 }
 
 // Generate color buttons for a theme
@@ -485,6 +560,37 @@ function generateColorButtons(themeId) {
     });
 }
 
+// Generate pipe color buttons for a theme
+function generatePipeColorButtons(themeId) {
+    const colors = getThemeColors(themeId);
+    const pipePaletteContainer = document.getElementById('pipe-color-palette');
+    
+    if (!pipePaletteContainer) return;
+    
+    // Clear existing buttons
+    pipePaletteContainer.innerHTML = '';
+    
+    // Create color buttons
+    Object.entries(colors).forEach(([colorKey, colorValue]) => {
+        const button = document.createElement('button');
+        button.classList.add('color-button', 'pipe-color-button');
+        button.style.backgroundColor = colorValue;
+        button.style.border = colorValue === '#ffffff' ? '2px solid #ccc' : '2px solid transparent';
+        button.title = colorKey.charAt(0).toUpperCase() + colorKey.slice(1);
+        button.dataset.colorKey = colorKey;
+        
+        // Add click event listener
+        button.addEventListener('click', () => {
+            if (currentSelectedElement) {
+                setPipeColor(currentSelectedElement, colorKey);
+                updatePipeColorSelection(currentSelectedElement);
+            }
+        });
+        
+        pipePaletteContainer.appendChild(button);
+    });
+}
+
 // Update color selection display
 function updateColorSelection(elementType) {
     const state = getElementState(elementType);
@@ -497,7 +603,7 @@ function updateColorSelection(elementType) {
     }
     
     // Update color button selection
-    const colorButtons = document.querySelectorAll('.color-button');
+    const colorButtons = document.querySelectorAll('.color-button:not(.pipe-color-button)');
     colorButtons.forEach(button => {
         if (button.dataset.colorKey === state.color) {
             button.classList.add('selected');
@@ -515,6 +621,30 @@ function updateColorSelection(elementType) {
     }
 }
 
+// Update pipe color selection display
+function updatePipeColorSelection(elementType) {
+    const state = getElementState(elementType);
+    if (!state) return;
+    
+    // Update pipe color button selection
+    const pipeColorButtons = document.querySelectorAll('.pipe-color-button');
+    pipeColorButtons.forEach(button => {
+        if (button.dataset.colorKey === state.pipeColor) {
+            button.classList.add('selected');
+        } else {
+            button.classList.remove('selected');
+        }
+    });
+    
+    // Update selected pipe color box display
+    const pipeColorBoxDisplay = document.getElementById('selected-pipe-color-indicator');
+    if (pipeColorBoxDisplay) {
+        const colorValue = getThemeColor(state.theme, state.pipeColor);
+        pipeColorBoxDisplay.style.backgroundColor = colorValue;
+        pipeColorBoxDisplay.title = state.pipeColor.charAt(0).toUpperCase() + state.pipeColor.slice(1);
+    }
+}
+
 // Initialize theme event listeners
 function initializeThemeEventListeners() {
     const themeSelector = document.getElementById('theme-selector');
@@ -523,14 +653,20 @@ function initializeThemeEventListeners() {
         themeSelector.addEventListener('change', (e) => {
             const newTheme = e.target.value;
             if (currentSelectedElement && availableThemes[newTheme]) {
-                // Update element to new theme with default color
+                // Update element to new theme with default colors
                 setElementTheme(currentSelectedElement, newTheme);
                 
                 // Regenerate color buttons for new theme
                 generateColorButtons(newTheme);
                 
-                // Update color selection display
+                // Regenerate pipe color buttons for new theme (if concatenated element)
+                if (currentSelectedElement === 'concatenated-element') {
+                    generatePipeColorButtons(newTheme);
+                }
+                
+                // Update color selection displays
                 updateColorSelection(currentSelectedElement);
+                updatePipeColorSelection(currentSelectedElement);
             }
         });
     }
@@ -928,6 +1064,9 @@ function showControlWidgets() {
         const state = getElementState(currentSelectedElement);
         const friendlyName = getElementFriendlyName(currentSelectedElement);
         
+        // Check if this is a concatenated element to show pipe controls
+        const isConcatenatedElement = currentSelectedElement === 'concatenated-element';
+        
         controlWidgets.innerHTML = `
             <div class="control-header">
                 <h4>Editing: ${friendlyName}</h4>
@@ -951,6 +1090,19 @@ function showControlWidgets() {
                         <!-- Color buttons generated by generateColorButtons() -->
                     </div>
                 </div>
+                
+                ${isConcatenatedElement ? `
+                <div class="pipe-color-selection">
+                    <label>Pipe Separator Color:</label>
+                    <div class="selected-color-display">
+                        <span class="selected-color-label">Current:</span>
+                        <div class="selected-color-box" id="selected-pipe-color-indicator"></div>
+                    </div>
+                    <div class="color-palette" id="pipe-color-palette">
+                        <!-- Pipe color buttons generated by generatePipeColorButtons() -->
+                    </div>
+                </div>
+                ` : ''}
             </div>
             
             <div class="position-controls">
@@ -1011,6 +1163,12 @@ function showControlWidgets() {
         generateThemeOptions();
         generateColorButtons(state.theme);
         updateColorSelection(currentSelectedElement);
+        
+        // Initialize pipe color system if concatenated element
+        if (isConcatenatedElement) {
+            generatePipeColorButtons(state.theme);
+            updatePipeColorSelection(currentSelectedElement);
+        }
         
         // Initialize event listeners
         initializeSliderEventListeners();
@@ -1528,11 +1686,12 @@ function createExampleSlide(selectedColumns, slideDimensions) {
     const nameElement = createTextElement('Name', 'name-element', 0, slideDimensions);
     certificateContainer.appendChild(nameElement);
 
-    // Create concatenated column element
+    // Create concatenated column element with HTML spans (FIXED)
     if (selectedColumns.length > 0) {
+        const concatenatedContent = createConcatenatedContentWithSpans(selectedColumns);
         const concatenatedElement = createTextElement(
-            selectedColumns.map(col => col).join('   |   '), 
-            'concatenated-element', 0, slideDimensions
+            concatenatedContent, 
+            'concatenated-element', 0, slideDimensions, true // true = use innerHTML
         );
         certificateContainer.appendChild(concatenatedElement);
     }
@@ -1604,16 +1763,16 @@ function createCertificateSlide(row, selectedColumns, date, orientation, index, 
     const nameElement = createTextElement(row.Name || '', 'name-element', index + 1, slideDimensions);
     certificateContainer.appendChild(nameElement);
 
-    // Create concatenated column element
+    // Create concatenated column element with HTML for pipe styling
     let concatenatedElement = null;
     if (selectedColumns.length > 0) {
         const concatenatedContent = selectedColumns
             .map(col => row[col] || '')
             .filter(value => value.trim() !== '') // Filter out empty values
-            .join('   |   ');
+            .join('   <span class="pipe-separator">|</span>   '); // Use HTML with styled pipes
         
         if (concatenatedContent.trim() !== '') {
-            concatenatedElement = createTextElement(concatenatedContent, 'concatenated-element', index + 1, slideDimensions);
+            concatenatedElement = createTextElement(concatenatedContent, 'concatenated-element', index + 1, slideDimensions, true); // true = use innerHTML
             certificateContainer.appendChild(concatenatedElement);
         }
     }
@@ -1667,9 +1826,15 @@ function createCertificateSlide(row, selectedColumns, date, orientation, index, 
 }
 
 // Function to create text elements with absolute positioning
-function createTextElement(text, elementType, slideIndex = 0, containerDimensions) {
+function createTextElement(text, elementType, slideIndex = 0, containerDimensions, useHTML = false) {
     const element = document.createElement('div');
-    element.textContent = text;
+    
+    // Set content based on whether we should use HTML or plain text
+    if (useHTML) {
+        element.innerHTML = text;
+    } else {
+        element.textContent = text;
+    }
     
     // Standardized class assignment - all elements of the same type use the same class
     let cssClass;
@@ -1833,10 +1998,14 @@ export {
     getThemeColor,
     setElementTheme,
     setElementColor,
+    setPipeColor,
     applyThemeToElement,
+    applyPipeColorToElement,
     generateColorButtons,
+    generatePipeColorButtons,
     generateThemeOptions,
     updateColorSelection,
+    updatePipeColorSelection,
     initializeThemeEventListeners,
     // Step 6 lock exports
     initializeLockEventListeners,
@@ -1844,5 +2013,8 @@ export {
     toggleLockVertical,
     updateLockButtonStates,
     // Step 7 alignment exports
-    initializeAlignmentEventListeners
+    initializeAlignmentEventListeners,
+    // Helper exports for pipe handling
+    createConcatenatedContentWithSpans,
+    ensurePipeSpans
 };

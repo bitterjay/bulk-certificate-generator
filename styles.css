@@ -831,6 +831,7 @@ input[type="date"] {
     border: 1px solid #dee2e6;
     border-radius: 10px;
     padding: 20px;
+    width:600px;
 }
 
 #element-buttons-container {
@@ -872,7 +873,9 @@ input[type="date"] {
     min-height: 150px;
     color: #6c757d;
     font-style: italic;
-    display: block;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
 }
 
 #control-widgets.has-controls {
@@ -957,7 +960,9 @@ input[type="date"] {
 
 .control-header {
     text-align: center;
+    grid-column: 1 / -1;
 }
+
 
 .control-header h4 {
     color: #007bff;
@@ -972,6 +977,7 @@ input[type="date"] {
     font-size: 14px;
     color: #666;
     text-align: center;
+    grid-column: 1 / -1;
 }
 
 .usage-tip p {
@@ -987,6 +993,10 @@ input[type="date"] {
     border: 1px solid #dee2e6;
     display: flex;
     flex-direction: column;
+    gap: 20px;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 20px;
 }
 
@@ -1073,6 +1083,27 @@ input[type="date"] {
 .color-button[style*="background-color: rgb(255, 255, 255)"].selected,
 .color-button[style*="background-color: #ffffff"].selected {
     border: 3px solid #007bff !important;
+}
+
+/* Pipe color controls styling */
+.pipe-color-selection {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #dee2e6;
+}
+
+.pipe-color-selection label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+/* Pipe separator styling in concatenated elements */
+.pipe-separator {
+    color: #666; /* fallback color - will be overridden by JavaScript */
+    font-weight: bold;
+    font-size: inherit;
 }
 
 /* Selected color display styling */

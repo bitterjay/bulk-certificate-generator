@@ -1,5 +1,6 @@
 // Module for generating PDF certificates
 import { PDFDocument, rgb } from 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.esm.js';
+import { getThemeColor, getThemeColors } from './uiRendering.js';
 
 // Load fontkit UMD module
 let fontkit = null;
@@ -67,7 +68,182 @@ async function loadFontFile(fontPath) {
     }
 }
 
+// Helper function to convert hex color to RGB values for PDFLib
+function hexToRgb(hex) {
+    // Handle theme color or fallback to black
+    if (!hex || hex === '') hex = '#000000';
+    
+    // Remove # if present
+    hex = hex.replace('#', '');
+    
+    // Parse hex values
+    const r = parseInt(hex.slice(0, 2), 16) / 255;
+    const g = parseInt(hex.slice(2, 4), 16) / 255;
+    const b = parseInt(hex.slice(4, 6), 16) / 255;
+    
+    return rgb(r, g, b);
+}
+
+// Helper function to parse concatenated content and separate text from pipes
+function parseConcatenatedContent(element, elementState) {
+    const innerHTML = element.innerHTML;
+    
+    console.log('🔍 PDF Debug - parseConcatenatedContent:');
+    console.log('  Element innerHTML:', innerHTML);
+    console.log('  Element state:', {
+        theme: elementState.theme,
+        color: elementState.color,
+        pipeColor: elementState.pipeColor,
+        isUppercase: elementState.isUppercase
+    });
+    
+    // Check if element has pipe separators with spans (more robust check)
+    if (innerHTML.includes('pipe-separator')) {
+        console.log('  ✅ Found pipe separators in HTML');
+        
+        // Create a temporary DOM element to properly parse the HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = innerHTML;
+        
+        // Get all child nodes (text and elements)
+        const childNodes = Array.from(tempDiv.childNodes);
+        const segments = [];
+        
+        console.log('  Child nodes found:', childNodes.length);
+        
+        childNodes.forEach((node, index) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                // Text node
+                const textContent = node.textContent.trim();
+                if (textContent) {
+                    const textColor = getThemeColor(elementState.theme, elementState.color);
+                    
+                    segments.push({
+                        type: 'text',
+                        content: textContent,
+                        color: textColor
+                    });
+                    
+                    console.log(`    Text node ${index}: "${textContent}" with color ${textColor}`);
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('pipe-separator')) {
+                // Pipe separator element
+                let pipeColor;
+                
+                // First try to extract color from inline style
+                const inlineStyle = node.getAttribute('style');
+                if (inlineStyle && inlineStyle.includes('color:')) {
+                    // Extract RGB color from inline style
+                    const colorMatch = inlineStyle.match(/color:\s*rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+                    if (colorMatch) {
+                        const [, r, g, b] = colorMatch;
+                        pipeColor = `#${parseInt(r).toString(16).padStart(2, '0')}${parseInt(g).toString(16).padStart(2, '0')}${parseInt(b).toString(16).padStart(2, '0')}`;
+                        console.log(`    Extracted inline pipe color: ${pipeColor} from style: ${inlineStyle}`);
+                    } else {
+                        // Fallback to state-based color
+                        if (elementState.pipeColor && elementState.pipeColor !== '') {
+                            pipeColor = getThemeColor(elementState.theme, elementState.pipeColor);
+                        } else {
+                            pipeColor = getThemeColor(elementState.theme, elementState.color);
+                        }
+                        console.log(`    Using fallback pipe color: ${pipeColor}`);
+                    }
+                } else {
+                    // No inline style, use state-based color
+                    if (elementState.pipeColor && elementState.pipeColor !== '') {
+                        pipeColor = getThemeColor(elementState.theme, elementState.pipeColor);
+                    } else {
+                        pipeColor = getThemeColor(elementState.theme, elementState.color);
+                    }
+                    console.log(`    Using state-based pipe color: ${pipeColor}`);
+                }
+                
+                segments.push({
+                    type: 'pipe',
+                    content: ' | ',
+                    color: pipeColor
+                });
+                
+                console.log(`    Pipe separator ${index}: " | " with color ${pipeColor}`);
+                console.log(`      pipeColor state: "${elementState.pipeColor}", color state: "${elementState.color}"`);
+            }
+        });
+        
+        console.log('  📊 Final segments:', segments);
+        return segments;
+    } else {
+        console.log('  ❌ No pipe separators found, treating as single text');
+        
+        // No pipe separators, treat as single text segment
+        const textContent = element.textContent.trim();
+        const textColor = getThemeColor(elementState.theme, elementState.color);
+        
+        const segments = [{
+            type: 'text',
+            content: textContent,
+            color: textColor
+        }];
+        
+        console.log('  📊 Single segment:', segments);
+        return segments;
+    }
+}
+
+// Helper function to draw text segments with different colors
+function drawTextSegments(page, segments, x, y, fontSize, font, elementState) {
+    let currentX = x;
+    
+    console.log('🎨 PDF Debug - drawTextSegments:');
+    console.log('  Position:', { x, y });
+    console.log('  Font size:', fontSize);
+    console.log('  Segments to draw:', segments.length);
+    
+    // Calculate total width first to center properly
+    let totalWidth = 0;
+    segments.forEach((segment, i) => {
+        const segmentWidth = font.widthOfTextAtSize(segment.content, fontSize);
+        totalWidth += segmentWidth;
+        console.log(`    Segment ${i} width: ${segmentWidth}px for "${segment.content}"`);
+    });
+    
+    console.log('  Total width:', totalWidth);
+    
+    // Start position adjusted for centering
+    currentX = x - (totalWidth / 2);
+    console.log('  Centered start X:', currentX);
+    
+    // Draw each segment
+    segments.forEach((segment, i) => {
+        const segmentWidth = font.widthOfTextAtSize(segment.content, fontSize);
+        const textColor = hexToRgb(segment.color);
+        
+        // Apply uppercase transformation if enabled
+        let content = segment.content;
+        if (elementState.isUppercase) {
+            content = content.toUpperCase();
+        }
+        
+        console.log(`    Drawing segment ${i}: "${content}" at x=${currentX}, color=${segment.color}`);
+        console.log(`      RGB values:`, textColor);
+        
+        page.drawText(content, {
+            x: currentX,
+            y: y,
+            size: fontSize,
+            font: font,
+            color: textColor,
+        });
+        
+        currentX += segmentWidth;
+    });
+    
+    console.log('  ✅ All segments drawn');
+}
+
 export async function generatePdfFromPreviews(previews, orientation = 'landscape', elementStates) {
+    console.log('🚀 PDF Generation started');
+    console.log('📊 Element states received:', elementStates);
+    
     const pdfDoc = await PDFDocument.create();
 
     // Load and register fontkit to enable custom font embedding
@@ -193,6 +369,8 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
     for (const preview of previews) {
         if (preview.id === 'example-slide') continue; // Skip example slide
 
+        console.log(`🎬 Processing preview slide: ${preview.id}`);
+
         // Create a new page with the same dimensions as the embedded image
         const page = pdfDoc.addPage([imageDims.width, imageDims.height]);
 
@@ -205,6 +383,8 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
         });
 
         const elements = preview.querySelectorAll('div[id]');
+        console.log(`  Found ${elements.length} elements to process`);
+        
         elements.forEach(element => {
             // Extract element type from ID (format: elementType-slideIndex)
             const id = element.id;
@@ -219,16 +399,15 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
                 return;
             }
             
+            console.log(`  📝 Processing element: ${elementType} (${id})`);
+            
             const state = elementStates[elementType];
 
-            if (!state || !state.isVisible) return;
-
-            // Apply uppercase transformation if enabled
-            let text = element.textContent;
-            if (state.isUppercase) {
-                text = text.toUpperCase();
+            if (!state || !state.isVisible) {
+                console.log(`    ⏭️ Skipping ${elementType}: not visible or no state`);
+                return;
             }
-            
+
             const x = (state.xPercent / 100) * imageDims.width;
             let y = (100 - state.yPercent) / 100 * imageDims.height;
 
@@ -236,8 +415,9 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
             const previewFontSize = state.fontSize || 24;
             const fontSize = previewFontSize * scalingFactor;
             
-            console.log(`Element ${elementType}: Preview font size: ${previewFontSize}px, PDF font size: ${fontSize}px`);
-            
+            console.log(`    Element ${elementType}: Preview font size: ${previewFontSize}px, PDF font size: ${fontSize}px`);
+            console.log(`    Position: ${state.xPercent}% x ${state.yPercent}% = ${x}, ${y}`);
+
             // Select appropriate font weight based on element type and web styling
             let font;
             if (elementType === 'name-element') {
@@ -251,39 +431,57 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
                 font = poppinsSemiBold;
             }
             
-            const colorKey = state.color || 'black';
-            const theme = state.theme || 'usa-archery';
-            // This is a placeholder. A more robust theme system would be needed here.
-            const colors = {
-                'usa-archery': { red: '#aa1e2e', blue: '#1c355e', black: '#000000', white: '#ffffff' },
-                'classic': { red: '#8B0000', blue: '#000080', black: '#000000', white: '#ffffff' },
-                'modern': { red: '#E53E3E', blue: '#3182CE', black: '#2D3748', white: '#ffffff' }
-            };
-            const hexColor = colors[theme] ? (colors[theme][colorKey] || '#000000') : '#000000';
-            const r = parseInt(hexColor.slice(1, 3), 16) / 255;
-            const g = parseInt(hexColor.slice(3, 5), 16) / 255;
-            const b = parseInt(hexColor.slice(5, 7), 16) / 255;
-            const textColor = rgb(r, g, b);
+            // Handle concatenated elements with pipe separators
+            if (elementType === 'concatenated-element') {
+                console.log(`    🔗 Processing concatenated element`);
+                
+                const segments = parseConcatenatedContent(element, state);
+                
+                // Calculate text height for positioning
+                const textHeight = font.heightAtSize(fontSize);
+                const centerY = y - (textHeight / 2);
+                
+                drawTextSegments(page, segments, x, centerY, fontSize, font, state);
+                
+                console.log(`    ✅ Concatenated element drawn with ${segments.length} segments`);
+            } else {
+                // Regular single-color text elements
+                console.log(`    📝 Processing regular text element`);
+                
+                let text = element.textContent;
+                if (state.isUppercase) {
+                    text = text.toUpperCase();
+                }
+                
+                // Use theme system to get the correct color
+                const hexColor = getThemeColor(state.theme, state.color);
+                const textColor = hexToRgb(hexColor);
 
-            const textWidth = font.widthOfTextAtSize(text, fontSize);
-            const textHeight = font.heightAtSize(fontSize);
-            
-            // Adjust positioning to center the text (matching the preview behavior)
-            // In the preview, elements are centered using transform translate
-            const centerX = x - (textWidth / 2);
-            const centerY = y - (textHeight / 2);
+                const textWidth = font.widthOfTextAtSize(text, fontSize);
+                const textHeight = font.heightAtSize(fontSize);
+                
+                // Adjust positioning to center the text (matching the preview behavior)
+                const centerX = x - (textWidth / 2);
+                const centerY = y - (textHeight / 2);
 
-            page.drawText(text, {
-                x: centerX,
-                y: centerY,
-                size: fontSize,
-                font: font,
-                color: textColor,
-            });
+                console.log(`    Drawing "${text}" with color ${hexColor} at ${centerX}, ${centerY}`);
+
+                page.drawText(text, {
+                    x: centerX,
+                    y: centerY,
+                    size: fontSize,
+                    font: font,
+                    color: textColor,
+                });
+                
+                console.log(`    ✅ Element ${elementType} drawn with color ${hexColor}`);
+            }
         });
     }
 
+    console.log('💾 Saving PDF...');
     const pdfBytes = await pdfDoc.save();
+    console.log('✅ PDF generation complete');
     return pdfBytes;
 }
 
