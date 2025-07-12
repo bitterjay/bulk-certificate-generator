@@ -1,5 +1,34 @@
 // Module for generating PDF certificates
-import { PDFDocument, rgb, StandardFonts } from 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.esm.js';
+import { PDFDocument, rgb } from 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.esm.js';
+
+// Load fontkit UMD module
+let fontkit = null;
+let fontkitPromise = null;
+
+async function loadFontkit() {
+    if (fontkit) return fontkit;
+    
+    if (!fontkitPromise) {
+        fontkitPromise = (async () => {
+            try {
+                const response = await fetch('../lib/fontkit.umd.js');
+                const text = await response.text();
+                // Create a function that executes the UMD module and returns fontkit
+                const moduleWrapper = new Function('exports', 'module', text);
+                const module = { exports: {} };
+                moduleWrapper(module.exports, module);
+                fontkit = module.exports || window.fontkit;
+                console.log('Fontkit loaded successfully');
+                return fontkit;
+            } catch (error) {
+                console.error('Failed to load fontkit:', error);
+                throw error;
+            }
+        })();
+    }
+    
+    return fontkitPromise;
+}
 
 // Helper function to detect image format by magic bytes
 function detectImageFormat(bytes) {
@@ -23,126 +52,125 @@ function detectImageFormat(bytes) {
     return null;
 }
 
+// Helper function to load font file as ArrayBuffer
+async function loadFontFile(fontPath) {
+    try {
+        const response = await fetch(fontPath);
+        if (!response.ok) {
+            throw new Error(`Failed to load font: ${fontPath}`);
+        }
+        const fontBytes = await response.arrayBuffer();
+        return fontBytes;
+    } catch (error) {
+        console.error(`Error loading font file ${fontPath}:`, error);
+        throw error;
+    }
+}
+
 export async function generatePdfFromPreviews(previews, orientation = 'landscape', elementStates) {
     const pdfDoc = await PDFDocument.create();
 
-    // Use standard PDF fonts (Helvetica) instead of custom fonts to avoid fontkit dependency
-    const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    // Load and register fontkit to enable custom font embedding
+    try {
+        const loadedFontkit = await loadFontkit();
+        pdfDoc.registerFontkit(loadedFontkit);
+    } catch (error) {
+        console.error('Failed to load fontkit, proceeding without custom fonts:', error);
+    }
+
+    // Load Poppins fonts
+    let poppinsRegular, poppinsSemiBold, poppinsBold;
+    
+    try {
+        console.log('Loading Poppins fonts...');
+        
+        // Load font files
+        const [regularBytes, semiBoldBytes, boldBytes] = await Promise.all([
+            loadFontFile('fonts/Poppins-Regular.ttf'),
+            loadFontFile('fonts/Poppins-SemiBold.ttf'),
+            loadFontFile('fonts/Poppins-Bold.ttf')
+        ]);
+        
+        // Embed fonts into PDF
+        poppinsRegular = await pdfDoc.embedFont(regularBytes);
+        poppinsSemiBold = await pdfDoc.embedFont(semiBoldBytes);
+        poppinsBold = await pdfDoc.embedFont(boldBytes);
+        
+        console.log('Poppins fonts loaded successfully');
+    } catch (error) {
+        console.error('Failed to load Poppins fonts, falling back to Helvetica:', error);
+        // Fallback to standard fonts if custom fonts fail to load
+        const { StandardFonts } = await import('https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.esm.js');
+        poppinsRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        poppinsSemiBold = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        poppinsBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    }
+
+    // Import the uploadedImage directly - more reliable than extracting from DOM
+    const { uploadedImage } = await import('./imageUpload.js');
+    
+    if (!uploadedImage || !uploadedImage.startsWith('data:')) {
+        console.error('No valid uploaded image found');
+        throw new Error('No certificate background image available');
+    }
+    
+    // Extract base64 data from the uploadedImage
+    const dataUrlParts = uploadedImage.split(',');
+    const base64Data = dataUrlParts[1];
+    
+    if (!base64Data) {
+        console.error('Invalid data URL: no base64 data found');
+        throw new Error('Invalid certificate background image');
+    }
+    
+    // Convert base64 to binary once - reuse for all pages
+    let imageBytes;
+    try {
+        const binaryString = atob(base64Data);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        imageBytes = bytes;
+    } catch (err) {
+        console.error('Error decoding base64:', err);
+        throw new Error('Failed to decode certificate background image');
+    }
+    
+    // Detect actual image format using magic bytes
+    const detectedFormat = detectImageFormat(imageBytes);
+    
+    if (!detectedFormat) {
+        console.error('Could not detect image format');
+        throw new Error('Unsupported image format');
+    }
+    
+    // Embed the image once - reuse for all pages
+    let embeddedImage;
+    try {
+        if (detectedFormat === 'png') {
+            console.log('Embedding as PNG');
+            embeddedImage = await pdfDoc.embedPng(imageBytes);
+        } else if (detectedFormat === 'jpeg') {
+            console.log('Embedding as JPEG');
+            embeddedImage = await pdfDoc.embedJpg(imageBytes);
+        }
+    } catch (err) {
+        console.error(`Error embedding ${detectedFormat} image:`, err);
+        throw new Error(`Failed to embed ${detectedFormat} image`);
+    }
+
+    const imageDims = embeddedImage.scale(1);
 
     for (const preview of previews) {
         if (preview.id === 'example-slide') continue; // Skip example slide
 
-        // Extract the background image URL more carefully
-        let imageSrc = preview.style.backgroundImage;
-        console.log('Raw backgroundImage:', imageSrc);
-        
-        // Extract URL from CSS property - handle various formats
-        if (imageSrc.startsWith('url(')) {
-            imageSrc = imageSrc.substring(4, imageSrc.length - 1);
-            // Remove quotes if present
-            if ((imageSrc.startsWith('"') && imageSrc.endsWith('"')) || 
-                (imageSrc.startsWith("'") && imageSrc.endsWith("'"))) {
-                imageSrc = imageSrc.substring(1, imageSrc.length - 1);
-            }
-        }
-        
-        console.log('Extracted image source:', imageSrc);
-        
-        let imageBytes;
-        
-        // Check if it's a data URL
-        if (imageSrc.startsWith('data:')) {
-            // Extract the mime type and base64 data
-            const dataUrlParts = imageSrc.split(',');
-            const mimeInfo = dataUrlParts[0];
-            const base64Data = dataUrlParts[1];
-            
-            if (!base64Data) {
-                console.error('Invalid data URL: no base64 data found');
-                continue;
-            }
-            
-            // Convert base64 to binary
-            try {
-                const binaryString = atob(base64Data);
-                // Convert binary string to Uint8Array
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                imageBytes = bytes;
-            } catch (err) {
-                console.error('Error decoding base64:', err);
-                continue;
-            }
-        } else {
-            console.error('Invalid image source - not a data URL:', imageSrc);
-            console.log('First 100 characters:', imageSrc.substring(0, 100));
-            
-            // Try to get the background image from the imported module
-            try {
-                // Import the uploadedImage from imageUpload module
-                const { uploadedImage } = await import('./imageUpload.js');
-                console.log('Using uploadedImage from module:', uploadedImage ? 'Available' : 'Not available');
-                
-                if (uploadedImage && uploadedImage.startsWith('data:')) {
-                    // Extract base64 data from the uploadedImage
-                    const dataUrlParts = uploadedImage.split(',');
-                    const base64Data = dataUrlParts[1];
-                    
-                    if (base64Data) {
-                        const binaryString = atob(base64Data);
-                        const len = binaryString.length;
-                        const bytes = new Uint8Array(len);
-                        for (let i = 0; i < len; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
-                        }
-                        imageBytes = bytes;
-                    }
-                } else {
-                    console.error('uploadedImage is not a valid data URL');
-                    continue;
-                }
-            } catch (err) {
-                console.error('Error getting uploadedImage:', err);
-                continue;
-            }
-        }
-
-        // Detect actual image format using magic bytes
-        const detectedFormat = detectImageFormat(imageBytes);
-        
-        if (!detectedFormat) {
-            console.error('Could not detect image format for slide');
-            continue;
-        }
-
-        // Try to embed the image based on detected format
-        let image;
-        try {
-            if (detectedFormat === 'png') {
-                console.log('Embedding as PNG');
-                image = await pdfDoc.embedPng(imageBytes);
-            } else if (detectedFormat === 'jpeg') {
-                console.log('Embedding as JPEG');
-                image = await pdfDoc.embedJpg(imageBytes);
-            }
-        } catch (err) {
-            console.error(`Error embedding ${detectedFormat} image:`, err);
-            console.log('Image size:', imageBytes.length, 'bytes');
-            console.log('First 16 bytes:', Array.from(imageBytes.slice(0, 16)).map(b => b.toString(16).padStart(2, '0')).join(' '));
-            
-            // Skip this slide if we can't embed the image
-            continue;
-        }
-
-        const imageDims = image.scale(1);
-
+        // Create a new page with the same dimensions as the embedded image
         const page = pdfDoc.addPage([imageDims.width, imageDims.height]);
 
-        page.drawImage(image, {
+        // Draw the background image on the page
+        page.drawImage(embeddedImage, {
             x: 0,
             y: 0,
             width: imageDims.width,
@@ -173,7 +201,19 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
             let y = (100 - state.yPercent) / 100 * imageDims.height;
 
             const fontSize = state.fontSize || 24;
-            const font = (elementType === 'name-element') ? helveticaBold : helvetica;
+            
+            // Select appropriate font weight based on element type and web styling
+            let font;
+            if (elementType === 'name-element') {
+                // Name uses font-weight: 600 (SemiBold) in CSS
+                font = poppinsSemiBold;
+            } else if (elementType === 'concatenated-element' || elementType === 'date-element') {
+                // Concatenated and date use font-weight: 600 (SemiBold) in CSS
+                font = poppinsSemiBold;
+            } else {
+                // Other elements also use font-weight: 600 (SemiBold) in CSS
+                font = poppinsSemiBold;
+            }
             
             const colorKey = state.color || 'black';
             const theme = state.theme || 'usa-archery';
