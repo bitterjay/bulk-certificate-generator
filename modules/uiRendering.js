@@ -584,7 +584,7 @@ function handleDocumentClick(event) {
     
     // Check if click is on certificate elements, controls, or buttons
     const isClickOnCertificate = event.target.closest('.certificate-preview');
-    const isClickOnControls = event.target.closest('#element-controls');
+    const isClickOnControls = event.target.closest('.element-control-panel') || event.target.closest('.element-selection');
     const isClickOnElement = event.target.closest('.certificate-preview div[id]');
     const isClickOnButton = event.target.closest('button');
     
@@ -1034,26 +1034,22 @@ function hideControlWidgets() {
 
 // Function to show element controls panel
 function showElementControls() {
-    const elementControls = document.getElementById('element-controls');
-    if (elementControls) {
-        elementControls.style.display = 'block';
-        isElementControlsVisible = true;
-        
-        // Generate element buttons
-        generateElementButtons();
-    }
+    // Element controls are now integrated into preview area
+    // Just ensure the controls are visible and generate buttons
+    isElementControlsVisible = true;
+    
+    // Generate element buttons
+    generateElementButtons();
 }
 
 // Function to hide element controls panel
 function hideElementControls() {
-    const elementControls = document.getElementById('element-controls');
-    if (elementControls) {
-        elementControls.style.display = 'none';
-        isElementControlsVisible = false;
-        
-        // Clear selection
-        clearElementSelection();
-    }
+    // Element controls are now integrated into preview area
+    // Just hide the control widgets and clear selection
+    isElementControlsVisible = false;
+    
+    // Clear selection
+    clearElementSelection();
 }
 
 // Function to handle slide change events
