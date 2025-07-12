@@ -78,6 +78,11 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
         console.error('Failed to load fontkit, proceeding without custom fonts:', error);
     }
 
+    // Calculate scaling factor based on preview vs actual image dimensions
+    // The preview has a max width of 800px, but the actual image could be larger
+    const PREVIEW_MAX_WIDTH = 800;
+    let scalingFactor = 1;
+
     // Load Poppins fonts
     let poppinsRegular, poppinsSemiBold, poppinsBold;
     
@@ -162,6 +167,28 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
     }
 
     const imageDims = embeddedImage.scale(1);
+    
+    // Calculate the scaling factor
+    // Get the actual image width from embedded image dimensions
+    const actualImageWidth = imageDims.width;
+    const actualImageHeight = imageDims.height;
+    
+    // Import image dimensions to get aspect ratio
+    const { imageAspectRatio } = await import('./imageUpload.js');
+    
+    // Calculate what the preview dimensions would be
+    // This matches the calculateSlideDimensions() logic in uiRendering.js
+    let previewWidth = PREVIEW_MAX_WIDTH;
+    let previewHeight = PREVIEW_MAX_WIDTH / imageAspectRatio;
+    
+    // Note: For now we're using desktop preview dimensions
+    // If needed, we could detect the actual preview size from the DOM
+    // but that would require passing preview dimensions from the UI
+    
+    // The scaling factor is the ratio between actual and preview dimensions
+    scalingFactor = actualImageWidth / previewWidth;
+    
+    console.log(`PDF Scaling - Preview: ${previewWidth}x${previewHeight}px, Actual: ${actualImageWidth}x${actualImageHeight}px, Scale: ${scalingFactor.toFixed(2)}x`);
 
     for (const preview of previews) {
         if (preview.id === 'example-slide') continue; // Skip example slide
@@ -196,11 +223,20 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
 
             if (!state || !state.isVisible) return;
 
-            const text = element.textContent;
+            // Apply uppercase transformation if enabled
+            let text = element.textContent;
+            if (state.isUppercase) {
+                text = text.toUpperCase();
+            }
+            
             const x = (state.xPercent / 100) * imageDims.width;
             let y = (100 - state.yPercent) / 100 * imageDims.height;
 
-            const fontSize = state.fontSize || 24;
+            // Scale the font size based on the difference between preview and actual dimensions
+            const previewFontSize = state.fontSize || 24;
+            const fontSize = previewFontSize * scalingFactor;
+            
+            console.log(`Element ${elementType}: Preview font size: ${previewFontSize}px, PDF font size: ${fontSize}px`);
             
             // Select appropriate font weight based on element type and web styling
             let font;
@@ -232,13 +268,14 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
             const textWidth = font.widthOfTextAtSize(text, fontSize);
             const textHeight = font.heightAtSize(fontSize);
             
-            // Adjust y-coordinate to match CSS top positioning (pdf-lib's origin is bottom-left)
-            y = y - textHeight * 0.8; 
-
+            // Adjust positioning to center the text (matching the preview behavior)
+            // In the preview, elements are centered using transform translate
+            const centerX = x - (textWidth / 2);
+            const centerY = y - (textHeight / 2);
 
             page.drawText(text, {
-                x: x - (textWidth / 2), // Centered text
-                y: y,
+                x: centerX,
+                y: centerY,
                 size: fontSize,
                 font: font,
                 color: textColor,

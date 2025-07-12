@@ -74,8 +74,8 @@ let dragState = {
 function getDefaultPosition(elementType) {
     const positions = {
         'name-element': { x: 50, y: 25 },        // center-top
-        'concatenated-element': { x: 50, y: 60 }, // center-middle
-        'date-element': { x: 85, y: 90 },        // bottom-right
+        'concatenated-element': { x: 50, y: 40 }, // center below name
+        'date-element': { x: 15, y: 90 },        // bottom-left
         'default': { x: 50, y: 45 }              // center-center for other elements
     };
     
@@ -97,7 +97,8 @@ function getDefaultFontSize(elementType) {
 // Function to distribute positions for additional elements to avoid overlap
 function getDistributedPosition(elementType, index) {
     // For additional elements (individual columns), distribute them vertically
-    const baseY = 35; // Start below the name
+    // Start below the concatenated element (which is at 40%)
+    const baseY = 55; // Start below concatenated element
     const spacing = 8; // 8% vertical spacing between elements
     
     return {
@@ -120,8 +121,8 @@ function initializeElementStates(availableElements) {
         const defaultPos = getDefaultPosition(elementType);
         const defaultFontSize = getDefaultFontSize(elementType);
         
-        // By default, lock horizontal movement for all elements except date
-        const shouldLockHorizontal = elementType !== 'date-element';
+        // By default, don't lock horizontal movement (user can lock if needed)
+        const shouldLockHorizontal = true;
         
         elementStates[elementType] = {
             xPercent: defaultPos.x,
@@ -1209,8 +1210,14 @@ function initializeLockEventListeners() {
 function toggleLockHorizontal(elementType) {
     const state = getElementState(elementType);
     if (state) {
-        const newLockState = !state.lockHorizontal;
-        updateElementState(elementType, { lockHorizontal: newLockState });
+        // Mutually exclusive lock behavior
+        if (state.lockHorizontal) {
+            // If horizontal is already locked, unlock it (both become movable)
+            updateElementState(elementType, { lockHorizontal: false });
+        } else {
+            // If horizontal is not locked, lock it and unlock vertical
+            updateElementState(elementType, { lockHorizontal: true, lockVertical: false });
+        }
         updateLockButtonStates(elementType);
         updateSliderValues(elementType); // To disable/enable slider
     }
@@ -1219,8 +1226,14 @@ function toggleLockHorizontal(elementType) {
 function toggleLockVertical(elementType) {
     const state = getElementState(elementType);
     if (state) {
-        const newLockState = !state.lockVertical;
-        updateElementState(elementType, { lockVertical: newLockState });
+        // Mutually exclusive lock behavior
+        if (state.lockVertical) {
+            // If vertical is already locked, unlock it (both become movable)
+            updateElementState(elementType, { lockVertical: false });
+        } else {
+            // If vertical is not locked, lock it and unlock horizontal
+            updateElementState(elementType, { lockVertical: true, lockHorizontal: false });
+        }
         updateLockButtonStates(elementType);
         updateSliderValues(elementType); // To disable/enable slider
     }
@@ -1518,7 +1531,7 @@ function createExampleSlide(selectedColumns, slideDimensions) {
     // Create concatenated column element
     if (selectedColumns.length > 0) {
         const concatenatedElement = createTextElement(
-            selectedColumns.map(col => col).join(' - '), 
+            selectedColumns.map(col => col).join('   |   '), 
             'concatenated-element', 0, slideDimensions
         );
         certificateContainer.appendChild(concatenatedElement);
@@ -1597,7 +1610,7 @@ function createCertificateSlide(row, selectedColumns, date, orientation, index, 
         const concatenatedContent = selectedColumns
             .map(col => row[col] || '')
             .filter(value => value.trim() !== '') // Filter out empty values
-            .join(' - ');
+            .join('   |   ');
         
         if (concatenatedContent.trim() !== '') {
             concatenatedElement = createTextElement(concatenatedContent, 'concatenated-element', index + 1, slideDimensions);

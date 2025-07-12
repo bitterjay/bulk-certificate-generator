@@ -717,6 +717,7 @@ input[type="date"] {
     border-radius: 5px;
     white-space: nowrap;
     overflow: hidden;
+    text-align: center;
 }
 
 .certificate-preview .concatenated {
@@ -727,8 +728,9 @@ input[type="date"] {
     /* background: rgba(255,255,255,0.7); */
     padding: 8px 16px;
     border-radius: 5px;
-    white-space: nowrap;
+    white-space: pre-wrap;
     overflow: hidden;
+    text-align: center;
 }
 
 .certificate-preview .date {
@@ -740,6 +742,7 @@ input[type="date"] {
     border-radius: 5px;
     white-space: nowrap;
     overflow: hidden;
+    text-align: center;
 }
 
 /* Additional element types - styling for individual column elements */
@@ -753,6 +756,7 @@ input[type="date"] {
     /* text-shadow: 1px 1px 2px rgba(255,255,255,0.8); */
     white-space: nowrap;
     overflow: hidden;
+    text-align: center;
 }
 
 /* Element selection highlighting */
