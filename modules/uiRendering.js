@@ -719,14 +719,16 @@ function handleDocumentClick(event) {
     // Don't deselect if no element is currently selected
     if (!currentSelectedElement) return;
     
-    // Check if click is on certificate elements, controls, or buttons
-    const isClickOnCertificate = event.target.closest('.certificate-preview');
+    // Check if click is specifically on the currently selected element
+    const isClickOnSelectedElement = currentSelectedElement && 
+        event.target.closest(`[id^="${currentSelectedElement}-"]`);
+    
+    // Check if click is on controls or buttons
     const isClickOnControls = event.target.closest('.element-control-panel') || event.target.closest('.element-selection');
-    const isClickOnElement = event.target.closest('.certificate-preview div[id]');
     const isClickOnButton = event.target.closest('button');
     
-    // Deselect if click is outside certificate area and not on controls/buttons
-    if (!isClickOnCertificate && !isClickOnControls && !isClickOnButton) {
+    // Deselect if not clicking on selected element, controls, or buttons
+    if (!isClickOnSelectedElement && !isClickOnControls && !isClickOnButton) {
         clearElementSelection();
     }
 }
