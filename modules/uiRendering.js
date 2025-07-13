@@ -1560,8 +1560,11 @@ export async function generatePreviewSlider(selectedColumns, date, orientation, 
     const availableElements = detectAvailableElementsFromData(selectedColumns);
     
     console.log('Initializing element states...');
-    if (layoutPreset) {
-        initializeElementStatesWithLayout(availableElements, layoutPreset);
+    // Auto-use default layout if no specific layout is provided
+    const effectiveLayoutPreset = layoutPreset || loadedLayoutPresets['default'] || null;
+    
+    if (effectiveLayoutPreset) {
+        initializeElementStatesWithLayout(availableElements, effectiveLayoutPreset);
     } else {
         initializeElementStates(availableElements);
     }
@@ -1938,6 +1941,7 @@ let loadedLayoutPresets = {};
 // Load all layout presets from JSON files
 async function loadLayoutPresets() {
     const layoutFiles = [
+        'default.json',
         'virtual-tournament.json',
         'in-person-competition.json', 
         'achievement-certificate.json'
@@ -2112,6 +2116,64 @@ function scaleElementByType(elementType, fontSize) {
     updateElementState(elementType, { fontSize });
 }
 
+// Generate layout dropdown options and set default as selected
+function generateLayoutOptions() {
+    const layoutSelector = document.getElementById('layout-selector');
+    if (!layoutSelector) return;
+    
+    // Clear existing options
+    layoutSelector.innerHTML = '';
+    
+    // Create options for each layout
+    Object.entries(loadedLayoutPresets).forEach(([layoutId, layout]) => {
+        const option = document.createElement('option');
+        option.value = layoutId;
+        option.textContent = layout.name;
+        
+        // Set default as selected
+        if (layoutId === 'default') {
+            option.selected = true;
+        }
+        
+        layoutSelector.appendChild(option);
+    });
+    
+    // Update layout description for the default selection
+    updateLayoutDescription('default');
+}
+
+// Update layout description display
+function updateLayoutDescription(layoutId) {
+    const layout = loadedLayoutPresets[layoutId];
+    const descriptionElement = document.getElementById('layout-description');
+    const columnsElement = document.getElementById('layout-columns');
+    
+    if (layoutId && layout) {
+        // Show layout information
+        if (descriptionElement) {
+            descriptionElement.textContent = layout.description || '';
+            descriptionElement.style.display = 'block';
+        }
+        
+        if (columnsElement) {
+            if (layout.expectedColumns && layout.expectedColumns.length > 0) {
+                columnsElement.innerHTML = `<strong>Works best with:</strong> ${layout.expectedColumns.join(', ')}`;
+                columnsElement.style.display = 'block';
+            } else {
+                columnsElement.style.display = 'none';
+            }
+        }
+    } else {
+        // Hide layout information for manual configuration
+        if (descriptionElement) {
+            descriptionElement.style.display = 'none';
+        }
+        if (columnsElement) {
+            columnsElement.style.display = 'none';
+        }
+    }
+}
+
 // Export new element selection functions and Step 3 functions
 export {
     generateElementButtons,
@@ -2176,5 +2238,7 @@ export {
     applyLayoutPreset,
     getLayoutPreset,
     initializeLayoutSystem,
-    initializeElementStatesWithLayout
+    initializeElementStatesWithLayout,
+    generateLayoutOptions,
+    updateLayoutDescription
 };

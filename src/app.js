@@ -1,6 +1,6 @@
-import { parseExcelData, parsedData } from '../modules/dataParsing.js';
+import { parseExcelData, parsedData, originalHeaders, originalData } from '../modules/dataParsing.js';
 import { handleImageUpload, showViewImageButton, uploadedImage, imageOrientation, imageWidth, imageHeight, imageAspectRatio } from '../modules/imageUpload.js';
-import { generatePreviewSlider, hideElementControls, elementStates, loadLayoutPresets, applyLayoutPreset, getLayoutPreset, initializeLayoutSystem } from '../modules/uiRendering.js';
+import { generatePreviewSlider, hideElementControls, elementStates, loadLayoutPresets, applyLayoutPreset, getLayoutPreset, initializeLayoutSystem, generateLayoutOptions, updateLayoutDescription } from '../modules/uiRendering.js';
 import { generatePdfFromPreviews, savePDF } from '../modules/pdfGeneration.js';
 
 // DOM Elements
@@ -35,6 +35,8 @@ let selectedLayout = null;
 // For debugging - expose data to global scope
 window.debug = {
     get parsedData() { return parsedData; },
+    get originalHeaders() { return originalHeaders; },
+    get originalData() { return originalData; },
     get parsedHeaders() { return parsedHeaders; },
     get parsedRows() { return parsedRows; },
     get selectedColumns() { return selectedColumns; }
@@ -192,6 +194,70 @@ function closeLightbox() {
     }
 }
 
+// Table Lightbox functionality
+function openTableLightbox() {
+    const tableLightbox = document.getElementById('table-lightbox');
+    const lightboxTableContainer = document.getElementById('lightbox-table-container');
+    
+    if (tableLightbox && lightboxTableContainer) {
+        // Generate table content
+        generateLightboxTable(lightboxTableContainer);
+        
+        tableLightbox.style.display = 'flex';
+        requestAnimationFrame(() => {
+            tableLightbox.classList.add('show');
+        });
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeTableLightbox() {
+    const tableLightbox = document.getElementById('table-lightbox');
+    
+    if (tableLightbox) {
+        tableLightbox.classList.remove('show');
+        setTimeout(() => {
+            tableLightbox.style.display = 'none';
+        }, 300);
+        
+        // Restore body scroll
+        document.body.style.overflow = '';
+    }
+}
+
+function generateLightboxTable(container) {
+    container.innerHTML = ''; // Clear previous table
+    
+    // Create grid table as a div - use ORIGINAL data for complete table display
+    const table = document.createElement('div');
+    table.classList.add('lightbox-table');
+    table.style.setProperty('--columns', originalHeaders.length);
+
+    // Add header cells - use original headers to show ALL columns
+    originalHeaders.forEach(header => {
+        const headerDiv = document.createElement('div');
+        headerDiv.classList.add('pasted-data-header');
+        headerDiv.textContent = header;
+        table.appendChild(headerDiv);
+    });
+
+    // Add data cells - use original data to show ALL column values
+    if (originalData && originalData.length > 0) {
+        originalData.forEach(row => {
+            originalHeaders.forEach(header => {
+                const cellDiv = document.createElement('div');
+                cellDiv.classList.add('pasted-data-cell');
+                cellDiv.textContent = row[header] !== undefined ? row[header] : '';
+                table.appendChild(cellDiv);
+            });
+        });
+    }
+
+    container.appendChild(table);
+}
+
 // File upload helper functions
 function clearFileSelection() {
     const fileInput = document.getElementById('png-upload');
@@ -269,17 +335,37 @@ document.getElementById('clear-file').addEventListener('click', function() {
 
 // Lightbox event listeners
 document.getElementById('view-image-button').addEventListener('click', openLightbox);
-document.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+
+// Handle close buttons for both lightboxes
+document.querySelectorAll('.lightbox-close').forEach(closeBtn => {
+    closeBtn.addEventListener('click', function() {
+        const lightbox = this.closest('.lightbox-overlay');
+        if (lightbox.id === 'image-lightbox') {
+            closeLightbox();
+        } else if (lightbox.id === 'table-lightbox') {
+            closeTableLightbox();
+        }
+    });
+});
+
+// Click outside to close lightboxes
 document.getElementById('image-lightbox').addEventListener('click', function(e) {
     if (e.target === this) {
         closeLightbox();
     }
 });
 
-// ESC key to close lightbox
+document.getElementById('table-lightbox').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeTableLightbox();
+    }
+});
+
+// ESC key to close lightboxes
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeLightbox();
+        closeTableLightbox();
     }
 });
 
@@ -569,7 +655,7 @@ function handleDataPaste() {
 
             // Show table button
             showTableButton.style.display = 'inline-block';
-            showTableButton.textContent = 'Show Table';
+            showTableButton.textContent = 'View Table';
             isTableVisible = false;
 
             // Clear any existing table
@@ -598,48 +684,13 @@ function handleDataPaste() {
 }
 
 function togglePastedDataTable() {
-    if (isTableVisible) {
-        // Hide the table
-        tableContainer.innerHTML = '';
-        showTableButton.textContent = 'Show Table';
-        isTableVisible = false;
-    } else {
-        // Show the table
-        showPastedDataTable();
-        showTableButton.textContent = 'Hide Table';
-        isTableVisible = true;
-    }
+    // Always open table in lightbox - no more toggle behavior
+    openTableLightbox();
 }
 
 function showPastedDataTable() {
-    tableContainer.innerHTML = ''; // Clear previous table
-
-    // Create grid table as a div
-    const table = document.createElement('div');
-    table.classList.add('pasted-data-table');
-    table.style.setProperty('--columns', parsedHeaders.length);
-
-    // Add header cells
-    parsedHeaders.forEach(header => {
-        const headerDiv = document.createElement('div');
-        headerDiv.classList.add('pasted-data-header');
-        headerDiv.textContent = header;
-        table.appendChild(headerDiv);
-    });
-
-    // Add data cells
-    if (parsedRows && parsedRows.length > 0) {
-        parsedRows.forEach(row => {
-            parsedHeaders.forEach(header => {
-                const cellDiv = document.createElement('div');
-                cellDiv.classList.add('pasted-data-cell');
-                cellDiv.textContent = row[header] !== undefined ? row[header] : '';
-                table.appendChild(cellDiv);
-            });
-        });
-    }
-
-    tableContainer.appendChild(table);
+    // Legacy function - now redirects to lightbox
+    openTableLightbox();
 }
 
 function generateColumnSelectionUI() {
@@ -956,30 +1007,6 @@ certificateDateInput.addEventListener('change', updateGeneratePreviewButton);
 generatePreviewButton.disabled = true;
 document.getElementById('generate-pdf').disabled = true;
 
-// Layout system functions
-async function initializeLayoutDropdown() {
-    try {
-        availableLayouts = await loadLayoutPresets();
-        
-        // Clear existing options (except manual configuration)
-        const manualOption = layoutSelector.querySelector('option[value=""]');
-        layoutSelector.innerHTML = '';
-        layoutSelector.appendChild(manualOption);
-        
-        // Populate dropdown with available layouts
-        Object.keys(availableLayouts).forEach(layoutId => {
-            const layout = availableLayouts[layoutId];
-            const option = document.createElement('option');
-            option.value = layoutId;
-            option.textContent = layout.name;
-            layoutSelector.appendChild(option);
-        });
-        
-    } catch (error) {
-        console.error('Error loading layout presets:', error);
-        toast.warning('Layout presets could not be loaded. Manual configuration available.');
-    }
-}
 
 function handleLayoutSelection() {
     const selectedLayoutId = layoutSelector.value;
@@ -1017,13 +1044,13 @@ function handleLayoutSelection() {
 }
 
 function autoConfigureColumnsForLayout(layout) {
-    if (!layout.columnConcatenation || !parsedHeaders) return;
+    if (!layout.expectedColumns || !parsedHeaders) return;
     
     // Clear current selection
     selectedColumns = [];
     
     // Auto-select columns that exist in the data
-    const availableColumns = layout.columnConcatenation.filter(col => 
+    const availableColumns = layout.expectedColumns.filter(col => 
         parsedHeaders.some(header => header.toLowerCase() === col.toLowerCase())
     );
     
@@ -1040,8 +1067,14 @@ function autoConfigureColumnsForLayout(layout) {
 }
 
 function updateColumnSelectionForLayout() {
+    // Save the current selection before regenerating UI
+    const savedSelection = [...selectedColumns];
+    
     // Regenerate the column selection UI to reflect auto-selected columns
     generateColumnSelectionUI();
+    
+    // Restore the saved selection
+    selectedColumns = savedSelection;
     
     // Apply the selected columns to the UI
     selectedColumns.forEach(columnName => {
@@ -1070,6 +1103,9 @@ function updateColumnSelectionForLayout() {
             dropZone.appendChild(newTag);
         }
     });
+    
+    // Update generate preview button state
+    updateGeneratePreviewButton();
 }
 
 // Initialize the interface based on browser capabilities
@@ -1077,7 +1113,20 @@ initializePasteInterface();
 
 // Initialize layout system
 initializeLayoutSystem().then(() => {
-    initializeLayoutDropdown();
+    // Load layout presets and populate dropdown
+    loadLayoutPresets().then(layouts => {
+        availableLayouts = layouts;
+        generateLayoutOptions();
+        
+        // Set up layout change event listener after dropdown is populated
+        if (layoutSelector) {
+            // Remove any existing listeners to prevent duplicates
+            layoutSelector.removeEventListener('change', handleLayoutSelection);
+            layoutSelector.addEventListener('change', handleLayoutSelection);
+        }
+        
+        console.log('Layout system fully initialized');
+    });
 }).catch(error => {
     console.error('Error initializing layout system:', error);
 });
