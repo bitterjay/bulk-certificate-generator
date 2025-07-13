@@ -1540,8 +1540,8 @@ function updateUppercaseButtonState(elementType) {
     }
 }
 
-
-export function generatePreviewSlider(selectedColumns, date, orientation) {
+// FIXED: generatePreviewSlider - Initialize states BEFORE creating slides
+export async function generatePreviewSlider(selectedColumns, date, orientation) {
     const previewContainer = document.getElementById('preview-container');
     previewContainer.innerHTML = ''; // Clear previous previews
 
@@ -1551,10 +1551,23 @@ export function generatePreviewSlider(selectedColumns, date, orientation) {
     // Update Swiper container height to match slide dimensions
     updateSwiperContainerHeight(slideDimensions.height);
 
-    // First, create an "example" slide with maximum width elements
+    // FIXED: Initialize theme system and element states BEFORE creating slides
+    console.log('Initializing theme system...');
+    await initializeThemeSystem();
+    
+    console.log('Detecting available elements...');
+    // Pre-detect what elements will be available based on data structure
+    const availableElements = detectAvailableElementsFromData(selectedColumns);
+    
+    console.log('Initializing element states...');
+    initializeElementStates(availableElements);
+
+    // Now create slides with state-driven positioning
+    console.log('Creating example slide...');
     const exampleSlide = createExampleSlide(selectedColumns, slideDimensions);
     previewContainer.appendChild(exampleSlide);
 
+    console.log('Creating certificate slides...');
     // Create slides for each data row
     parsedData.forEach((row, index) => {
         const slide = createCertificateSlide(row, selectedColumns, date, orientation, index, slideDimensions);
@@ -1562,23 +1575,42 @@ export function generatePreviewSlider(selectedColumns, date, orientation) {
     });
 
     // Initialize Swiper
+    console.log('Initializing Swiper...');
     initializeSwiper();
     
-    // STEP 3 & 5: Initialize theme system and element states after slides are created
-    setTimeout(async () => {
-        // Initialize theme system first
-        await initializeThemeSystem();
+    // FIXED: Use immediate initialization instead of setTimeout
+    console.log('Setting up element interactions...');
+    // Add click listeners to all elements
+    addElementClickListeners();
+    
+    // Show element controls after everything is ready
+    showElementControls();
+}
+
+// New helper function to detect elements from data structure
+function detectAvailableElementsFromData(selectedColumns) {
+    const elements = ['name-element', 'date-element']; // Always present
+    
+    // Add concatenated element if columns are selected
+    if (selectedColumns && selectedColumns.length > 0) {
+        elements.push('concatenated-element');
+    }
+    
+    // Add individual column elements for unselected columns
+    if (parsedData.length > 0) {
+        const allColumns = Object.keys(parsedData[0]);
+        const unselectedColumns = allColumns.filter(col => 
+            col !== 'Name' && 
+            !selectedColumns.includes(col)
+        );
         
-        // Then initialize element states (which now includes theme data)
-        const availableElements = detectAvailableElements();
-        initializeElementStates(availableElements);
-        
-        // Add click listeners to all elements
-        addElementClickListeners();
-        
-        // Show element controls after states are initialized
-        showElementControls();
-    }, 200);
+        unselectedColumns.forEach(col => {
+            const elementType = sanitizeClassName(col) + '-element';
+            elements.push(elementType);
+        });
+    }
+    
+    return elements;
 }
 
 function updateSwiperContainerHeight(height) {
@@ -1668,6 +1700,7 @@ function initializeSwiper() {
     }, 100);
 }
 
+// FIXED: createExampleSlide - Use state positions from start
 function createExampleSlide(selectedColumns, slideDimensions) {
     const slide = document.createElement('div');
     slide.classList.add('swiper-slide', 'example-slide');
@@ -1684,66 +1717,39 @@ function createExampleSlide(selectedColumns, slideDimensions) {
     certificateContainer.style.width = `${slideDimensions.width}px`;
     certificateContainer.style.height = `${slideDimensions.height}px`;
 
-    // Create elements with clean example content using absolute positioning
-    const nameElement = createTextElement('Name', 'name-element', 0, slideDimensions);
+    // Create elements using state positions from the start
+    const nameElement = createTextElementWithState('Name', 'name-element', 0, slideDimensions);
     certificateContainer.appendChild(nameElement);
 
-    // Create concatenated column element with HTML spans (FIXED)
+    // Create concatenated column element with HTML spans
     if (selectedColumns.length > 0) {
         const concatenatedContent = createConcatenatedContentWithSpans(selectedColumns);
-        const concatenatedElement = createTextElement(
+        const concatenatedElement = createTextElementWithState(
             concatenatedContent, 
-            'concatenated-element', 0, slideDimensions, true // true = use innerHTML
+            'concatenated-element', 0, slideDimensions, true
         );
         certificateContainer.appendChild(concatenatedElement);
     }
 
-    // Create individual column elements with distributed positions
+    // Create individual column elements with state positions
     const remainingColumns = Object.keys(parsedData[0] || {})
         .filter(col => !selectedColumns.includes(col) && col !== 'Name');
     
     remainingColumns.forEach((col, index) => {
         const elementType = sanitizeClassName(col) + '-element';
-        const columnElement = createTextElement(col, elementType, 0, slideDimensions);
-        
-        // Apply distributed position for additional elements
-        const position = getDistributedPosition(elementType, index);
-        const pixelX = (slideDimensions.width * position.x) / 100;
-        const pixelY = (slideDimensions.height * position.y) / 100;
-        
-        columnElement.style.left = `${pixelX}px`;
-        columnElement.style.top = `${pixelY}px`;
-        columnElement.dataset.centerX = pixelX;
-        columnElement.dataset.centerY = pixelY;
-        
+        const columnElement = createTextElementWithState(col, elementType, 0, slideDimensions);
         certificateContainer.appendChild(columnElement);
     });
 
-    // Add date element with formatted date
-    const dateElement = createTextElement('12/31/2024', 'date-element', 0, slideDimensions);
+    // Add date element
+    const dateElement = createTextElementWithState('12/31/2024', 'date-element', 0, slideDimensions);
     certificateContainer.appendChild(dateElement);
-    
-    // Center all elements manually after they are added to DOM
-    setTimeout(() => {
-        centerElementManually(nameElement);
-        if (selectedColumns.length > 0) {
-            const concatenatedElement = certificateContainer.querySelector('.concatenated');
-            if (concatenatedElement) centerElementManually(concatenatedElement);
-        }
-        centerElementManually(dateElement);
-        
-        // Center additional elements
-        remainingColumns.forEach((col, index) => {
-            const sanitizedCol = sanitizeClassName(col);
-            const element = certificateContainer.querySelector(`#${sanitizedCol}-element-0`);
-            if (element) centerElementManually(element);
-        });
-    }, 0);
 
     slide.appendChild(certificateContainer);
     return slide;
 }
 
+// FIXED: createCertificateSlide - Use state positions from start
 function createCertificateSlide(row, selectedColumns, date, orientation, index, slideDimensions) {
     const slide = document.createElement('div');
     slide.classList.add('swiper-slide', 'certificate-slide');
@@ -1761,74 +1767,46 @@ function createCertificateSlide(row, selectedColumns, date, orientation, index, 
     certificateContainer.style.width = `${slideDimensions.width}px`;
     certificateContainer.style.height = `${slideDimensions.height}px`;
 
-    // Create name element (concatenated first and last name) with absolute positioning
-    const nameElement = createTextElement(row.Name || '', 'name-element', index + 1, slideDimensions);
+    // Create name element using state positioning
+    const nameElement = createTextElementWithState(row.Name || '', 'name-element', index + 1, slideDimensions);
     certificateContainer.appendChild(nameElement);
 
-    // Create concatenated column element with HTML for pipe styling
-    let concatenatedElement = null;
+    // Create concatenated column element
     if (selectedColumns.length > 0) {
         const concatenatedContent = selectedColumns
             .map(col => row[col] || '')
-            .filter(value => value.trim() !== '') // Filter out empty values
-            .join('   <span class="pipe-separator">|</span>   '); // Use HTML with styled pipes
+            .filter(value => value.trim() !== '')
+            .join('   <span class="pipe-separator">|</span>   ');
         
         if (concatenatedContent.trim() !== '') {
-            concatenatedElement = createTextElement(concatenatedContent, 'concatenated-element', index + 1, slideDimensions, true); // true = use innerHTML
+            const concatenatedElement = createTextElementWithState(concatenatedContent, 'concatenated-element', index + 1, slideDimensions, true);
             certificateContainer.appendChild(concatenatedElement);
         }
     }
 
-    // Create individual column elements with distributed positions
+    // Create individual column elements using state positioning
     const remainingColumns = Object.keys(row)
         .filter(col => !selectedColumns.includes(col) && col !== 'Name');
     
-    const additionalElements = [];
-    let elementIndex = 0;
     remainingColumns.forEach(col => {
         if (row[col] && row[col].toString().trim() !== '') {
             const elementType = sanitizeClassName(col) + '-element';
-            const columnElement = createTextElement(row[col] || '', elementType, index + 1, slideDimensions);
-            
-            // Apply distributed position for additional elements
-            const position = getDistributedPosition(elementType, elementIndex);
-            const pixelX = (slideDimensions.width * position.x) / 100;
-            const pixelY = (slideDimensions.height * position.y) / 100;
-            
-            columnElement.style.left = `${pixelX}px`;
-            columnElement.style.top = `${pixelY}px`;
-            columnElement.dataset.centerX = pixelX;
-            columnElement.dataset.centerY = pixelY;
-            
+            const columnElement = createTextElementWithState(row[col] || '', elementType, index + 1, slideDimensions);
             certificateContainer.appendChild(columnElement);
-            additionalElements.push(columnElement);
-            elementIndex++;
         }
     });
 
-    // Add date element with formatted date
+    // Add date element
     const formattedDate = formatDateForDisplay(date);
-    const dateElement = createTextElement(formattedDate || '', 'date-element', index + 1, slideDimensions);
+    const dateElement = createTextElementWithState(formattedDate || '', 'date-element', index + 1, slideDimensions);
     certificateContainer.appendChild(dateElement);
-    
-    // Center all elements manually after they are added to DOM
-    setTimeout(() => {
-        centerElementManually(nameElement);
-        if (concatenatedElement) centerElementManually(concatenatedElement);
-        centerElementManually(dateElement);
-        
-        // Center additional elements
-        additionalElements.forEach(element => {
-            centerElementManually(element);
-        });
-    }, 0);
 
     slide.appendChild(certificateContainer);
     return slide;
 }
 
-// Function to create text elements with absolute positioning
-function createTextElement(text, elementType, slideIndex = 0, containerDimensions, useHTML = false) {
+// NEW: Enhanced element creation that uses state from the start
+function createTextElementWithState(text, elementType, slideIndex = 0, containerDimensions, useHTML = false) {
     const element = document.createElement('div');
     
     // Set content based on whether we should use HTML or plain text
@@ -1838,7 +1816,7 @@ function createTextElement(text, elementType, slideIndex = 0, containerDimension
         element.textContent = text;
     }
     
-    // Standardized class assignment - all elements of the same type use the same class
+    // Standardized class assignment
     let cssClass;
     if (elementType === 'name-element') {
         cssClass = 'name';
@@ -1847,33 +1825,54 @@ function createTextElement(text, elementType, slideIndex = 0, containerDimension
     } else if (elementType === 'date-element') {
         cssClass = 'date';
     } else {
-        // For other element types, use sanitized column name as class
         cssClass = elementType.replace('-element', '');
     }
     
     element.classList.add(cssClass);
-    element.classList.add('element'); // Add shared class for all certificate elements
-    
-    // Add unique ID for each element instance
+    element.classList.add('element');
     element.id = `${elementType}-${slideIndex}`;
     
-    // Set default pixel positions based on element type and container dimensions
-    const positions = getDefaultPosition(elementType);
+    // FIXED: Use state position instead of default position
+    const state = getElementState(elementType);
+    const positions = state ? { x: state.xPercent, y: state.yPercent } : getDefaultPosition(elementType);
     
     // Convert percentage positions to pixel values
     const pixelX = (containerDimensions.width * positions.x) / 100;
     const pixelY = (containerDimensions.height * positions.y) / 100;
     
-    // Apply positioning without transform (will be centered manually after element is added to DOM)
+    // Apply state-driven positioning
     element.style.position = 'absolute';
     element.style.left = `${pixelX}px`;
     element.style.top = `${pixelY}px`;
     
-    // Store positioning data for later centering
+    // Store positioning data
     element.dataset.centerX = pixelX;
     element.dataset.centerY = pixelY;
     
+    // Apply state-driven styling if available
+    if (state) {
+        element.style.fontSize = `${state.fontSize}px`;
+        element.style.textTransform = state.isUppercase ? 'uppercase' : 'none';
+        applyThemeToElement(element, state.theme, state.color);
+        
+        // Apply pipe color if this is a concatenated element
+        if (elementType === 'concatenated-element') {
+            ensurePipeSpans(element);
+            applyPipeColorToElement(element, state.theme, state.pipeColor);
+        }
+        
+        element.style.display = state.isVisible ? 'block' : 'none';
+    }
+    
+    // Center element manually
+    setTimeout(() => centerElementManually(element), 0);
+    
     return element;
+}
+
+// Function to create text elements with absolute positioning (legacy - keeping for compatibility)
+function createTextElement(text, elementType, slideIndex = 0, containerDimensions, useHTML = false) {
+    return createTextElementWithState(text, elementType, slideIndex, containerDimensions, useHTML);
 }
 
 // Function to center element manually after it's added to DOM
