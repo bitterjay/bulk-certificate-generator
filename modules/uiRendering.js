@@ -111,7 +111,7 @@ function getDefaultPosition(elementType) {
 function getDefaultFontSize(elementType) {
     const fontSizes = {
         'name-element': 36,
-        'concatenated-element': 24,
+        'concatenated-element': 10,
         'date-element': 18,
         'default': 20
     };
