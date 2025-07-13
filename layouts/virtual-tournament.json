@@ -1,0 +1,51 @@
+{
+  "name": "Virtual Tournament",
+  "description": "Clean, modern layout optimized for virtual archery competitions with emphasis on digital participation details",
+  "expectedColumns": ["Club", "Division", "Age Class", "Discipline"],
+  "requiredColumns": ["Club"],
+  "elementStates": {
+    "name-element": {
+      "xPercent": 50,
+      "yPercent": 22,
+      "fontSize": 44,
+      "theme": "usa-archery",
+      "color": "red",
+      "pipeColor": "black",
+      "lockHorizontal": true,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    },
+    "concatenated-element": {
+      "xPercent": 50,
+      "yPercent": 45,
+      "fontSize": 28,
+      "theme": "usa-archery",
+      "color": "blue",
+      "pipeColor": "black",
+      "lockHorizontal": true,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    },
+    "date-element": {
+      "xPercent": 15,
+      "yPercent": 85,
+      "fontSize": 20,
+      "theme": "usa-archery",
+      "color": "black",
+      "pipeColor": "black",
+      "lockHorizontal": false,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    }
+  },
+  "columnConcatenation": ["Club", "Division", "Age Class"],
+  "defaultTheme": "usa-archery",
+  "fallbackPositioning": {
+    "startY": 60,
+    "spacing": 8,
+    "defaultFontSize": 20
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "name": "Achievement Certificate",
+  "description": "Versatile layout suitable for various achievement recognitions with balanced element positioning",
+  "expectedColumns": ["Club", "Age Class", "Discipline"],
+  "requiredColumns": [],
+  "elementStates": {
+    "name-element": {
+      "xPercent": 50,
+      "yPercent": 30,
+      "fontSize": 40,
+      "theme": "modern",
+      "color": "red",
+      "pipeColor": "black",
+      "lockHorizontal": true,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    },
+    "concatenated-element": {
+      "xPercent": 50,
+      "yPercent": 50,
+      "fontSize": 26,
+      "theme": "modern",
+      "color": "black",
+      "pipeColor": "red",
+      "lockHorizontal": true,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    },
+    "date-element": {
+      "xPercent": 50,
+      "yPercent": 85,
+      "fontSize": 19,
+      "theme": "modern",
+      "color": "black",
+      "pipeColor": "black",
+      "lockHorizontal": false,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    }
+  },
+  "columnConcatenation": ["Club", "Age Class"],
+  "defaultTheme": "modern",
+  "fallbackPositioning": {
+    "startY": 65,
+    "spacing": 8,
+    "defaultFontSize": 20
+  }
+}

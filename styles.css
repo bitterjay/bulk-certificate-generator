@@ -339,6 +339,58 @@ input[type="date"] {
     }
 }
 
+/* Layout Selection Styling */
+.layout-controls {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.layout-dropdown {
+    padding: 0.75rem 1rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+    background-color: white;
+    transition: border-color 0.3s ease;
+    cursor: pointer;
+}
+
+.layout-dropdown:hover {
+    border-color: #aa1e2e;
+}
+
+.layout-dropdown:focus {
+    outline: none;
+    border-color: #aa1e2e;
+    box-shadow: 0 0 0 3px rgba(170, 30, 46, 0.1);
+}
+
+.layout-description {
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-left: 4px solid #aa1e2e;
+    border-radius: 4px;
+    font-style: italic;
+    color: #555;
+    line-height: 1.5;
+}
+
+.layout-expected-columns {
+    padding: 0.75rem;
+    background-color: #e8f4f8;
+    border: 1px solid #bee5eb;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #0c5460;
+}
+
+.layout-expected-columns strong {
+    color: #0a4c57;
+}
+
 /* Table styles */
 .pasted-data-table {
     display: grid;

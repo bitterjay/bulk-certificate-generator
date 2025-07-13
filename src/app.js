@@ -1,6 +1,6 @@
 import { parseExcelData, parsedData } from '../modules/dataParsing.js';
 import { handleImageUpload, showViewImageButton, uploadedImage, imageOrientation, imageWidth, imageHeight, imageAspectRatio } from '../modules/imageUpload.js';
-import { generatePreviewSlider, hideElementControls, elementStates } from '../modules/uiRendering.js';
+import { generatePreviewSlider, hideElementControls, elementStates, loadLayoutPresets, applyLayoutPreset, getLayoutPreset, initializeLayoutSystem } from '../modules/uiRendering.js';
 import { generatePdfFromPreviews, savePDF } from '../modules/pdfGeneration.js';
 
 // DOM Elements
@@ -18,6 +18,10 @@ const certificateDateInput = document.getElementById('certificate-date');
 const todayButton = document.getElementById('today-button');
 const columnSelectionSection = document.getElementById('column-selection');
 const tableContainer = document.getElementById('table-container');
+const layoutSelectionSection = document.getElementById('layout-selection');
+const layoutSelector = document.getElementById('layout-selector');
+const layoutDescription = document.getElementById('layout-description');
+const layoutColumns = document.getElementById('layout-columns');
 
 // State variables
 let parsedHeaders = [];
@@ -25,6 +29,8 @@ let parsedRows = [];
 let selectedColumns = [];
 let isTableVisible = false;
 let isManualPasteMode = false;
+let availableLayouts = {};
+let selectedLayout = null;
 
 // For debugging - expose data to global scope
 window.debug = {
@@ -250,6 +256,7 @@ generateTestPortraitButton.addEventListener('click', handleGenerateTestPortraitP
 generateTestLandscapeButton.addEventListener('click', handleGenerateTestLandscapePreview);
 generatePdfButton.addEventListener('click', handleGeneratePdf);
 todayButton.addEventListener('click', handleTodayButtonClick);
+layoutSelector.addEventListener('change', handleLayoutSelection);
 
 // File upload button event listeners
 document.getElementById('upload-trigger').addEventListener('click', function() {
@@ -568,8 +575,16 @@ function handleDataPaste() {
             // Clear any existing table
             tableContainer.innerHTML = '';
 
+            // Show layout selection section
+            layoutSelectionSection.style.display = 'block';
+
             // Generate column selection UI
             generateColumnSelectionUI();
+            
+            // If a layout is selected, auto-configure columns
+            if (selectedLayout) {
+                autoConfigureColumnsForLayout(selectedLayout);
+            }
             
             // Update status - only show success if we haven't already shown a success message
             if (!document.querySelector('.toast.success')) {
@@ -898,8 +913,8 @@ function handleGeneratePreview() {
     // Show the preview area
     document.getElementById('preview-area').style.display = 'block';
 
-    // Generate preview slider
-    generatePreviewSlider(selectedColumns, date, orientation);
+    // Generate preview slider with layout preset
+    generatePreviewSlider(selectedColumns, date, orientation, selectedLayout);
 
     // Enable PDF generation button
     document.getElementById('generate-pdf').disabled = false;
@@ -941,5 +956,128 @@ certificateDateInput.addEventListener('change', updateGeneratePreviewButton);
 generatePreviewButton.disabled = true;
 document.getElementById('generate-pdf').disabled = true;
 
+// Layout system functions
+async function initializeLayoutDropdown() {
+    try {
+        availableLayouts = await loadLayoutPresets();
+        
+        // Clear existing options (except manual configuration)
+        const manualOption = layoutSelector.querySelector('option[value=""]');
+        layoutSelector.innerHTML = '';
+        layoutSelector.appendChild(manualOption);
+        
+        // Populate dropdown with available layouts
+        Object.keys(availableLayouts).forEach(layoutId => {
+            const layout = availableLayouts[layoutId];
+            const option = document.createElement('option');
+            option.value = layoutId;
+            option.textContent = layout.name;
+            layoutSelector.appendChild(option);
+        });
+        
+    } catch (error) {
+        console.error('Error loading layout presets:', error);
+        toast.warning('Layout presets could not be loaded. Manual configuration available.');
+    }
+}
+
+function handleLayoutSelection() {
+    const selectedLayoutId = layoutSelector.value;
+    
+    if (selectedLayoutId) {
+        selectedLayout = availableLayouts[selectedLayoutId];
+        
+        // Show layout information
+        if (selectedLayout) {
+            layoutDescription.textContent = selectedLayout.description;
+            layoutDescription.style.display = 'block';
+            
+            // Show expected columns
+            if (selectedLayout.expectedColumns && selectedLayout.expectedColumns.length > 0) {
+                layoutColumns.innerHTML = `<strong>Works best with:</strong> ${selectedLayout.expectedColumns.join(', ')}`;
+                layoutColumns.style.display = 'block';
+            } else {
+                layoutColumns.style.display = 'none';
+            }
+            
+            // Auto-configure column concatenation if data is available
+            if (parsedHeaders && parsedHeaders.length > 0) {
+                autoConfigureColumnsForLayout(selectedLayout);
+            }
+            
+            toast.success(`Layout "${selectedLayout.name}" selected`);
+        }
+    } else {
+        // Manual configuration selected
+        selectedLayout = null;
+        layoutDescription.style.display = 'none';
+        layoutColumns.style.display = 'none';
+        toast.info('Manual configuration mode selected');
+    }
+}
+
+function autoConfigureColumnsForLayout(layout) {
+    if (!layout.columnConcatenation || !parsedHeaders) return;
+    
+    // Clear current selection
+    selectedColumns = [];
+    
+    // Auto-select columns that exist in the data
+    const availableColumns = layout.columnConcatenation.filter(col => 
+        parsedHeaders.some(header => header.toLowerCase() === col.toLowerCase())
+    );
+    
+    if (availableColumns.length > 0) {
+        selectedColumns = availableColumns;
+        
+        // Update the UI if column selection is already generated
+        if (document.getElementById('available-columns')) {
+            updateColumnSelectionForLayout();
+        }
+        
+        toast.info(`Auto-configured columns: ${availableColumns.join(', ')}`);
+    }
+}
+
+function updateColumnSelectionForLayout() {
+    // Regenerate the column selection UI to reflect auto-selected columns
+    generateColumnSelectionUI();
+    
+    // Apply the selected columns to the UI
+    selectedColumns.forEach(columnName => {
+        const availableColumns = document.getElementById('available-columns');
+        const dropZone = document.getElementById('concatenation-drop-zone');
+        
+        // Find the column in available columns
+        const columnElement = Array.from(availableColumns.children)
+            .find(child => child.dataset.column === columnName);
+        
+        if (columnElement && dropZone) {
+            // Remove from available columns
+            columnElement.remove();
+            
+            // Add to concatenation zone
+            const newTag = createDraggableColumnTag(columnName);
+            newTag.classList.add('concatenated-column');
+            newTag.addEventListener('dblclick', () => removeConcatenatedColumn(columnName));
+            
+            // Hide placeholder if it exists
+            const placeholder = dropZone.querySelector('.drop-zone-placeholder');
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+            
+            dropZone.appendChild(newTag);
+        }
+    });
+}
+
 // Initialize the interface based on browser capabilities
 initializePasteInterface();
+
+// Initialize layout system
+initializeLayoutSystem().then(() => {
+    initializeLayoutDropdown();
+}).catch(error => {
+    console.error('Error initializing layout system:', error);
+});

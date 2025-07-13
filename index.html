@@ -27,13 +27,25 @@
             <div id="table-container"></div>
         </section>
 
+        <section id="layout-selection" style="display: none;">
+            <h2>2. Choose Layout Preset (Optional)</h2>
+            <div class="layout-controls">
+                <select id="layout-selector" class="layout-dropdown">
+                    <option value="">Manual Configuration</option>
+                    <!-- Options populated dynamically -->
+                </select>
+                <div id="layout-description" class="layout-description" style="display: none;"></div>
+                <div id="layout-columns" class="layout-expected-columns" style="display: none;"></div>
+            </div>
+        </section>
+
         <section id="column-selection">
-            <h2>2. Select Columns to Include</h2>
+            <h2>3. Select Columns to Include</h2>
             <!-- Column selection UI will be dynamically generated here -->
         </section>
 
         <section id="image-upload">
-            <h2>3. Upload Certificate Background</h2>
+            <h2>4. Upload Certificate Background</h2>
             <div class="file-upload-container">
                 <input type="file" id="png-upload" accept=".png,.jpg,.jpeg" style="display: none;">
                 <button type="button" id="upload-trigger" class="upload-button">
@@ -50,7 +62,7 @@
         </section>
 
         <section id="date-selection">
-            <h2>4. Select Certificate Date</h2>
+            <h2>5. Select Certificate Date</h2>
             <div class="date-input-group">
                 <input type="date" id="certificate-date">
                 <button type="button" id="today-button" class="today-button">Today</button>

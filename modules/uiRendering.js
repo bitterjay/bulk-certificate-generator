@@ -1541,7 +1541,7 @@ function updateUppercaseButtonState(elementType) {
 }
 
 // FIXED: generatePreviewSlider - Initialize states BEFORE creating slides
-export async function generatePreviewSlider(selectedColumns, date, orientation) {
+export async function generatePreviewSlider(selectedColumns, date, orientation, layoutPreset = null) {
     const previewContainer = document.getElementById('preview-container');
     previewContainer.innerHTML = ''; // Clear previous previews
 
@@ -1560,7 +1560,11 @@ export async function generatePreviewSlider(selectedColumns, date, orientation) 
     const availableElements = detectAvailableElementsFromData(selectedColumns);
     
     console.log('Initializing element states...');
-    initializeElementStates(availableElements);
+    if (layoutPreset) {
+        initializeElementStatesWithLayout(availableElements, layoutPreset);
+    } else {
+        initializeElementStates(availableElements);
+    }
 
     // Now create slides with state-driven positioning
     console.log('Creating example slide...');
@@ -1926,6 +1930,155 @@ export function scaleElement(elementSelector, fontSize) {
     }
 }
 
+// LAYOUT PRESET SYSTEM FUNCTIONS (Step 1.3)
+
+// Global variable to store loaded layout presets
+let loadedLayoutPresets = {};
+
+// Load all layout presets from JSON files
+async function loadLayoutPresets() {
+    const layoutFiles = [
+        'virtual-tournament.json',
+        'in-person-competition.json', 
+        'achievement-certificate.json'
+    ];
+    
+    const layouts = {};
+    
+    for (const filename of layoutFiles) {
+        try {
+            const response = await fetch(`layouts/${filename}`);
+            if (response.ok) {
+                const layoutData = await response.json();
+                const layoutId = filename.replace('.json', '');
+                layouts[layoutId] = layoutData;
+                console.log(`Loaded layout: ${layoutId}`);
+            } else {
+                console.warn(`Failed to load layout: ${filename} - ${response.status}`);
+            }
+        } catch (error) {
+            console.error(`Error loading layout ${filename}:`, error);
+        }
+    }
+    
+    loadedLayoutPresets = layouts;
+    console.log('Layout presets loaded:', Object.keys(layouts));
+    return layouts;
+}
+
+// Apply a layout preset to current element states
+function applyLayoutPreset(layoutName) {
+    const layout = loadedLayoutPresets[layoutName];
+    if (!layout) {
+        console.warn(`Layout preset '${layoutName}' not found`);
+        return false;
+    }
+    
+    console.log(`Applying layout preset: ${layoutName}`);
+    
+    // Apply element states from layout
+    if (layout.elementStates) {
+        Object.entries(layout.elementStates).forEach(([elementType, layoutState]) => {
+            if (elementStates[elementType]) {
+                // Merge layout state with current state, preserving user customizations
+                const mergedState = {
+                    ...elementStates[elementType],
+                    ...layoutState,
+                    lastUpdated: Date.now()
+                };
+                
+                // Validate the merged state
+                const validatedState = validateStateValues(elementType, mergedState);
+                elementStates[elementType] = { ...elementStates[elementType], ...validatedState };
+                
+                console.log(`Applied layout state for ${elementType}:`, elementStates[elementType]);
+            }
+        });
+        
+        // Sync all changes to slides
+        Object.keys(layout.elementStates).forEach(elementType => {
+            if (elementStates[elementType]) {
+                syncStateToSlides(elementType);
+            }
+        });
+    }
+    
+    // Update current theme if specified
+    if (layout.defaultTheme && availableThemes[layout.defaultTheme]) {
+        currentTheme = layout.defaultTheme;
+        console.log(`Set theme to: ${currentTheme}`);
+    }
+    
+    return true;
+}
+
+// Get a specific layout preset
+function getLayoutPreset(layoutName) {
+    return loadedLayoutPresets[layoutName] || null;
+}
+
+// Initialize the layout system
+async function initializeLayoutSystem() {
+    console.log('Initializing layout system...');
+    
+    try {
+        // Initialize theme system first
+        await initializeThemeSystem();
+        
+        // Load layout presets
+        await loadLayoutPresets();
+        
+        console.log('Layout system initialized successfully');
+        return true;
+    } catch (error) {
+        console.error('Error initializing layout system:', error);
+        return false;
+    }
+}
+
+// Enhanced initializeElementStates to accept layout preset
+function initializeElementStatesWithLayout(availableElements, layoutPreset = null) {
+    console.log('Initializing element states for:', availableElements);
+    console.log('Layout preset:', layoutPreset);
+    
+    // Clear existing states
+    elementStates = {};
+
+    // Initialize states for each element type
+    availableElements.forEach(elementType => {
+        const defaultPos = getDefaultPosition(elementType);
+        const defaultFontSize = getDefaultFontSize(elementType);
+        
+        // Determine lock defaults based on element type
+        const shouldLockHorizontal = elementType !== 'date-element';
+        
+        // Start with defaults
+        elementStates[elementType] = {
+            xPercent: defaultPos.x,
+            yPercent: defaultPos.y,
+            fontSize: defaultFontSize,
+            theme: currentTheme,
+            color: getDefaultColorForTheme(currentTheme),
+            pipeColor: getDefaultPipeColor(currentTheme),
+            lockHorizontal: shouldLockHorizontal,
+            lockVertical: false,
+            isVisible: true,
+            isUppercase: false,
+            lastUpdated: Date.now()
+        };
+        
+        // Apply layout preset overrides if provided
+        if (layoutPreset && layoutPreset.elementStates && layoutPreset.elementStates[elementType]) {
+            const layoutState = layoutPreset.elementStates[elementType];
+            const validatedState = validateStateValues(elementType, layoutState);
+            elementStates[elementType] = { ...elementStates[elementType], ...validatedState };
+            console.log(`Applied layout preset for ${elementType}:`, elementStates[elementType]);
+        }
+    });
+    
+    console.log('Element states initialized:', elementStates);
+}
+
 // Enhanced position management functions (Step 3)
 function getElementPosition(elementType) {
     const state = getElementState(elementType);
@@ -2017,5 +2170,11 @@ export {
     initializeAlignmentEventListeners,
     // Helper exports for pipe handling
     createConcatenatedContentWithSpans,
-    ensurePipeSpans
+    ensurePipeSpans,
+    // Layout system exports (Step 1.3)
+    loadLayoutPresets,
+    applyLayoutPreset,
+    getLayoutPreset,
+    initializeLayoutSystem,
+    initializeElementStatesWithLayout
 };

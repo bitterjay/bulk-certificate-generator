@@ -1,0 +1,51 @@
+{
+  "name": "In-Person Competition",
+  "description": "Traditional tournament layout with formal positioning and emphasis on competitive achievements",
+  "expectedColumns": ["Division", "Placement", "Discipline", "Gender"],
+  "requiredColumns": ["Division"],
+  "elementStates": {
+    "name-element": {
+      "xPercent": 50,
+      "yPercent": 25,
+      "fontSize": 38,
+      "theme": "classic",
+      "color": "black",
+      "pipeColor": "black",
+      "lockHorizontal": true,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    },
+    "concatenated-element": {
+      "xPercent": 50,
+      "yPercent": 55,
+      "fontSize": 24,
+      "theme": "classic",
+      "color": "red",
+      "pipeColor": "black",
+      "lockHorizontal": true,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    },
+    "date-element": {
+      "xPercent": 85,
+      "yPercent": 90,
+      "fontSize": 18,
+      "theme": "classic",
+      "color": "black",
+      "pipeColor": "black",
+      "lockHorizontal": false,
+      "lockVertical": false,
+      "isVisible": true,
+      "isUppercase": false
+    }
+  },
+  "columnConcatenation": ["Division", "Placement", "Gender"],
+  "defaultTheme": "classic",
+  "fallbackPositioning": {
+    "startY": 70,
+    "spacing": 8,
+    "defaultFontSize": 20
+  }
+}
