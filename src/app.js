@@ -304,6 +304,12 @@ pngUploadInput.addEventListener('change', function() {
         updateFilenameDisplay(file.name);
         
         handleImageUpload(file).then(base64Data => {
+            // Set the uploaded image and dimensions to window for preview generator access
+            window.uploadedImage = uploadedImage;
+            window.imageAspectRatio = imageAspectRatio;
+            window.imageWidth = imageWidth;
+            window.imageHeight = imageHeight;
+            window.imageOrientation = imageOrientation;
             showViewImageButton();
             // Update preview button state after orientation is detected
             updateGeneratePreviewButton();
@@ -497,6 +503,12 @@ async function handleGenerateTestPortraitPreview() {
         // Step 4: Process the image upload
         updatePortraitButtonText('Processing Portrait Image...');
         const base64Data = await handleImageUpload(file);
+        // Set the uploaded image and dimensions to window for preview generator access
+        window.uploadedImage = uploadedImage;
+        window.imageAspectRatio = imageAspectRatio;
+        window.imageWidth = imageWidth;
+        window.imageHeight = imageHeight;
+        window.imageOrientation = imageOrientation;
         showViewImageButton();
         
         // Step 5: Set default column concatenation (use some interesting columns)
@@ -560,6 +572,12 @@ async function handleGenerateTestLandscapePreview() {
         // Step 4: Process the image upload
         updateLandscapeButtonText('Processing Landscape Image...');
         const base64Data = await handleImageUpload(file);
+        // Set the uploaded image and dimensions to window for preview generator access
+        window.uploadedImage = uploadedImage;
+        window.imageAspectRatio = imageAspectRatio;
+        window.imageWidth = imageWidth;
+        window.imageHeight = imageHeight;
+        window.imageOrientation = imageOrientation;
         showViewImageButton();
         
         // Step 5: Set default column concatenation (use some interesting columns)
@@ -961,6 +979,16 @@ function handleGeneratePreview() {
     // Use auto-detected orientation from image upload module
     const orientation = imageOrientation;
 
+    // DEBUG: Log generate button click data
+    console.log('=== GENERATE PREVIEW BUTTON CLICKED ===');
+    console.log('Selected columns:', selectedColumns);
+    console.log('Date:', date);
+    console.log('Orientation:', orientation);
+    console.log('Selected layout:', selectedLayout);
+    console.log('Parsed headers:', parsedHeaders);
+    console.log('Parsed data length:', parsedData ? parsedData.length : 'undefined');
+    console.log('Parsed data sample:', parsedData ? parsedData[0] : 'undefined');
+    
     // Show the preview area
     document.getElementById('preview-area').style.display = 'block';
 

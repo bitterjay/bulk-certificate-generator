@@ -1,23 +1,50 @@
-// Module for generating PDF certificates
+/**
+ * PDF GENERATION MODULE
+ * Handles the generation of PDF certificates from the preview slides.
+ * This module creates multi-page PDFs with proper font embedding, image backgrounds,
+ * and element positioning that matches the preview display.
+ * 
+ * Key features:
+ * - Multi-format image support (PNG, JPEG, JPG)
+ * - Custom font embedding (Poppins family)
+ * - Proper scaling from preview to PDF dimensions
+ * - Concatenated element support with pipe separators
+ * - Theme-based color system integration
+ * - Element state management (position, color, font size, etc.)
+ */
+
+// Import PDFLib components for PDF creation
 import { PDFDocument, rgb } from 'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.esm.js';
+// Import theme color functions from UI rendering module
 import { getThemeColor, getThemeColors } from './uiRendering.js';
 
-// Load fontkit UMD module
+// Global variables for fontkit library management
 let fontkit = null;
 let fontkitPromise = null;
 
+/**
+ * Loads the fontkit library required for custom font embedding
+ * @returns {Promise<Object>} Promise that resolves with the fontkit library
+ * 
+ * Fontkit is required to embed custom TTF fonts into PDFs.
+ * This function loads the UMD module and caches it for reuse.
+ */
 async function loadFontkit() {
     if (fontkit) return fontkit;
     
     if (!fontkitPromise) {
         fontkitPromise = (async () => {
             try {
+                // Fetch the fontkit UMD module
                 const response = await fetch('../lib/fontkit.umd.js');
                 const text = await response.text();
+                
                 // Create a function that executes the UMD module and returns fontkit
                 const moduleWrapper = new Function('exports', 'module', text);
                 const module = { exports: {} };
                 moduleWrapper(module.exports, module);
+                
+                // Extract fontkit from module exports or window global
                 fontkit = module.exports || window.fontkit;
                 console.log('Fontkit loaded successfully');
                 return fontkit;
@@ -31,7 +58,15 @@ async function loadFontkit() {
     return fontkitPromise;
 }
 
-// Helper function to detect image format by magic bytes
+/**
+ * Detects image format by examining the first few bytes (magic bytes)
+ * @param {Uint8Array} bytes - The image bytes to examine
+ * @returns {string|null} The detected format ('png', 'jpeg') or null if unknown
+ * 
+ * This function examines the binary signature of image files to determine format:
+ * - PNG: 89 50 4E 47 0D 0A 1A 0A (8 bytes)
+ * - JPEG: FF D8 FF (3 bytes)
+ */
 function detectImageFormat(bytes) {
     if (!bytes || bytes.length < 8) {
         console.error('Invalid image data: too short');
@@ -53,7 +88,14 @@ function detectImageFormat(bytes) {
     return null;
 }
 
-// Helper function to load font file as ArrayBuffer
+/**
+ * Loads a font file from the filesystem as ArrayBuffer
+ * @param {string} fontPath - Path to the font file relative to the app root
+ * @returns {Promise<ArrayBuffer>} Promise that resolves with the font data
+ * 
+ * This function fetches TTF font files and returns them as ArrayBuffer
+ * for embedding into PDF documents.
+ */
 async function loadFontFile(fontPath) {
     try {
         const response = await fetch(fontPath);
@@ -68,7 +110,14 @@ async function loadFontFile(fontPath) {
     }
 }
 
-// Helper function to convert hex color to RGB values for PDFLib
+/**
+ * Converts hex color string to PDFLib RGB color object
+ * @param {string} hex - Hex color string (with or without #)
+ * @returns {Object} PDFLib RGB color object with r, g, b values (0-1)
+ * 
+ * PDFLib requires RGB values as decimals between 0-1, not 0-255.
+ * This function converts standard hex colors to the required format.
+ */
 function hexToRgb(hex) {
     // Handle theme color or fallback to black
     if (!hex || hex === '') hex = '#000000';
@@ -76,7 +125,7 @@ function hexToRgb(hex) {
     // Remove # if present
     hex = hex.replace('#', '');
     
-    // Parse hex values
+    // Parse hex values and convert to 0-1 range
     const r = parseInt(hex.slice(0, 2), 16) / 255;
     const g = parseInt(hex.slice(2, 4), 16) / 255;
     const b = parseInt(hex.slice(4, 6), 16) / 255;
@@ -84,7 +133,22 @@ function hexToRgb(hex) {
     return rgb(r, g, b);
 }
 
-// Helper function to parse concatenated content and separate text from pipes
+/**
+ * Parses concatenated element content to separate text segments from pipe separators
+ * @param {HTMLElement} element - The DOM element containing concatenated content
+ * @param {Object} elementState - The element's state object with color/theme info
+ * @returns {Array<Object>} Array of segment objects with type, content, and color
+ * 
+ * This function handles concatenated elements that may contain pipe separators
+ * with different colors. It parses the HTML structure to extract:
+ * - Text segments with their colors
+ * - Pipe separators with their independent colors
+ * 
+ * Each segment object contains:
+ * - type: 'text' or 'pipe'
+ * - content: The text content
+ * - color: The hex color for this segment
+ */
 function parseConcatenatedContent(element, elementState) {
     const innerHTML = element.innerHTML;
     
@@ -113,7 +177,7 @@ function parseConcatenatedContent(element, elementState) {
         
         childNodes.forEach((node, index) => {
             if (node.nodeType === Node.TEXT_NODE) {
-                // Text node
+                // Text node - regular text content
                 const textContent = node.textContent.trim();
                 if (textContent) {
                     const textColor = getThemeColor(elementState.theme, elementState.color);
@@ -127,13 +191,13 @@ function parseConcatenatedContent(element, elementState) {
                     console.log(`    Text node ${index}: "${textContent}" with color ${textColor}`);
                 }
             } else if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('pipe-separator')) {
-                // Pipe separator element
+                // Pipe separator element - may have independent color
                 let pipeColor;
                 
                 // First try to extract color from inline style
                 const inlineStyle = node.getAttribute('style');
                 if (inlineStyle && inlineStyle.includes('color:')) {
-                    // Extract RGB color from inline style
+                    // Extract RGB color from inline style and convert to hex
                     const colorMatch = inlineStyle.match(/color:\s*rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
                     if (colorMatch) {
                         const [, r, g, b] = colorMatch;
@@ -189,7 +253,20 @@ function parseConcatenatedContent(element, elementState) {
     }
 }
 
-// Helper function to draw text segments with different colors
+/**
+ * Draws text segments with different colors on the PDF page
+ * @param {Object} page - PDFLib page object
+ * @param {Array<Object>} segments - Array of text/pipe segments with colors
+ * @param {number} x - X coordinate for text positioning
+ * @param {number} y - Y coordinate for text positioning
+ * @param {number} fontSize - Font size for all segments
+ * @param {Object} font - PDFLib font object
+ * @param {Object} elementState - Element state for uppercase transformation
+ * 
+ * This function draws multiple text segments in sequence, each with its own color.
+ * It calculates the total width for proper centering and applies uppercase
+ * transformation if enabled in the element state.
+ */
 function drawTextSegments(page, segments, x, y, fontSize, font, elementState) {
     let currentX = x;
     
@@ -240,10 +317,27 @@ function drawTextSegments(page, segments, x, y, fontSize, font, elementState) {
     console.log('  ✅ All segments drawn');
 }
 
+/**
+ * Main function to generate PDF from certificate preview slides
+ * @param {Array<HTMLElement>} previews - Array of preview slide DOM elements
+ * @param {string} orientation - Image orientation ('landscape' or 'portrait')
+ * @param {Object} elementStates - Object containing state for each element type
+ * @returns {Promise<Uint8Array>} Promise that resolves with PDF bytes
+ * 
+ * This is the main PDF generation function that:
+ * 1. Creates a new PDF document
+ * 2. Loads and embeds custom fonts (Poppins family)
+ * 3. Processes the uploaded certificate background image
+ * 4. Calculates scaling factors between preview and PDF dimensions
+ * 5. Creates a page for each certificate (skipping example slide)
+ * 6. Positions and draws all text elements with proper colors and formatting
+ * 7. Returns the completed PDF as bytes for download
+ */
 export async function generatePdfFromPreviews(previews, orientation = 'landscape', elementStates) {
     console.log('🚀 PDF Generation started');
     console.log('📊 Element states received:', elementStates);
     
+    // Create a new PDF document
     const pdfDoc = await PDFDocument.create();
 
     // Load and register fontkit to enable custom font embedding
@@ -259,20 +353,20 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
     const PREVIEW_MAX_WIDTH = 800;
     let scalingFactor = 1;
 
-    // Load Poppins fonts
+    // Load Poppins font family for professional typography
     let poppinsRegular, poppinsSemiBold, poppinsBold;
     
     try {
         console.log('Loading Poppins fonts...');
         
-        // Load font files
+        // Load all three Poppins font files concurrently
         const [regularBytes, semiBoldBytes, boldBytes] = await Promise.all([
             loadFontFile('fonts/Poppins-Regular.ttf'),
             loadFontFile('fonts/Poppins-SemiBold.ttf'),
             loadFontFile('fonts/Poppins-Bold.ttf')
         ]);
         
-        // Embed fonts into PDF
+        // Embed fonts into PDF document
         poppinsRegular = await pdfDoc.embedFont(regularBytes);
         poppinsSemiBold = await pdfDoc.embedFont(semiBoldBytes);
         poppinsBold = await pdfDoc.embedFont(boldBytes);
@@ -287,7 +381,7 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
         poppinsBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     }
 
-    // Import the uploadedImage directly - more reliable than extracting from DOM
+    // Import the uploaded image directly - more reliable than extracting from DOM
     const { uploadedImage } = await import('./imageUpload.js');
     
     if (!uploadedImage || !uploadedImage.startsWith('data:')) {
@@ -295,7 +389,7 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
         throw new Error('No certificate background image available');
     }
     
-    // Extract base64 data from the uploadedImage
+    // Extract base64 data from the data URL
     const dataUrlParts = uploadedImage.split(',');
     const base64Data = dataUrlParts[1];
     
@@ -307,6 +401,7 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
     // Convert base64 to binary once - reuse for all pages
     let imageBytes;
     try {
+        // Decode base64 to binary string, then to Uint8Array
         const binaryString = atob(base64Data);
         const len = binaryString.length;
         const bytes = new Uint8Array(len);
@@ -342,10 +437,10 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
         throw new Error(`Failed to embed ${detectedFormat} image`);
     }
 
+    // Get the actual image dimensions from the embedded image
     const imageDims = embeddedImage.scale(1);
     
-    // Calculate the scaling factor
-    // Get the actual image width from embedded image dimensions
+    // Calculate the scaling factor between preview and actual image
     const actualImageWidth = imageDims.width;
     const actualImageHeight = imageDims.height;
     
@@ -366,6 +461,7 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
     
     console.log(`PDF Scaling - Preview: ${previewWidth}x${previewHeight}px, Actual: ${actualImageWidth}x${actualImageHeight}px, Scale: ${scalingFactor.toFixed(2)}x`);
 
+    // Process each preview slide to create PDF pages
     for (const preview of previews) {
         if (preview.id === 'example-slide') continue; // Skip example slide
 
@@ -382,9 +478,11 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
             height: imageDims.height,
         });
 
+        // Find all text elements in this preview slide
         const elements = preview.querySelectorAll('div[id]');
         console.log(`  Found ${elements.length} elements to process`);
         
+        // Process each text element
         elements.forEach(element => {
             // Extract element type from ID (format: elementType-slideIndex)
             const id = element.id;
@@ -401,6 +499,7 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
             
             console.log(`  📝 Processing element: ${elementType} (${id})`);
             
+            // Get the element's state (position, color, font size, etc.)
             const state = elementStates[elementType];
 
             if (!state || !state.isVisible) {
@@ -408,7 +507,9 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
                 return;
             }
 
+            // Convert percentage-based position to actual PDF coordinates
             const x = (state.xPercent / 100) * imageDims.width;
+            // Y coordinate is inverted in PDF (0 is bottom, not top)
             let y = (100 - state.yPercent) / 100 * imageDims.height;
 
             // Scale the font size based on the difference between preview and actual dimensions
@@ -435,12 +536,14 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
             if (elementType === 'concatenated-element') {
                 console.log(`    🔗 Processing concatenated element`);
                 
+                // Parse the element to extract text and pipe segments
                 const segments = parseConcatenatedContent(element, state);
                 
                 // Calculate text height for positioning
                 const textHeight = font.heightAtSize(fontSize);
                 const centerY = y - (textHeight / 2);
                 
+                // Draw all segments with their individual colors
                 drawTextSegments(page, segments, x, centerY, fontSize, font, state);
                 
                 console.log(`    ✅ Concatenated element drawn with ${segments.length} segments`);
@@ -448,6 +551,7 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
                 // Regular single-color text elements
                 console.log(`    📝 Processing regular text element`);
                 
+                // Get the text content and apply uppercase if enabled
                 let text = element.textContent;
                 if (state.isUppercase) {
                     text = text.toUpperCase();
@@ -457,6 +561,7 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
                 const hexColor = getThemeColor(state.theme, state.color);
                 const textColor = hexToRgb(hexColor);
 
+                // Calculate text dimensions for centering
                 const textWidth = font.widthOfTextAtSize(text, fontSize);
                 const textHeight = font.heightAtSize(fontSize);
                 
@@ -466,6 +571,7 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
 
                 console.log(`    Drawing "${text}" with color ${hexColor} at ${centerX}, ${centerY}`);
 
+                // Draw the text on the PDF page
                 page.drawText(text, {
                     x: centerX,
                     y: centerY,
@@ -485,7 +591,15 @@ export async function generatePdfFromPreviews(previews, orientation = 'landscape
     return pdfBytes;
 }
 
-
+/**
+ * Saves PDF bytes to a file and triggers download
+ * @param {Uint8Array} pdfBytes - The PDF data as bytes
+ * @param {string} filename - The filename for the download (default: 'certificates.pdf')
+ * 
+ * This function creates a blob from the PDF bytes and triggers a download
+ * using a temporary anchor element. The file is saved to the user's default
+ * download location.
+ */
 export async function savePDF(pdfBytes, filename = 'certificates.pdf') {
     // Create a blob from the PDF bytes
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -495,7 +609,7 @@ export async function savePDF(pdfBytes, filename = 'certificates.pdf') {
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     
-    // Append to body, click, and remove
+    // Append to body, click to trigger download, then remove
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
