@@ -18,7 +18,8 @@ export let dragState = {
     animationFrameId: null, // For smooth updates
     hasMoved: false, // Track if the mouse has actually moved during drag
     mouseMoveHandler: null, // Store reference to mousemove handler
-    mouseUpHandler: null // Store reference to mouseup handler
+    mouseUpHandler: null, // Store reference to mouseup handler
+    sliderUpdateTimeout: null // For throttling slider updates during drag
 };
 
 // Get element type from DOM element
@@ -116,7 +117,7 @@ export function handleElementMouseDown(
     document.addEventListener('mousemove', dragState.mouseMoveHandler);
     document.addEventListener('mouseup', dragState.mouseUpHandler);
     
-    // Add dragging class and disable transitions
+    // Immediately apply dragging class and disable transitions
     dragState.currentElement.classList.add('dragging');
     
     // Add flag to prevent centering during drag
@@ -124,6 +125,9 @@ export function handleElementMouseDown(
     
     // Prevent text selection during drag
     document.body.style.userSelect = 'none';
+    
+    // Set initial cursor
+    document.body.style.cursor = 'move';
 }
 
 // Handle mouse move during drag
@@ -179,7 +183,8 @@ export function handleDragMove(event, getElementState, updateDraggedElementPosit
         const clampedY = Math.max(0, Math.min(100, yPercent));
         
         // Update position immediately for smooth dragging (optimized)
-        updateDraggedElementPositionFn(dragState.elementType, clampedX, clampedY);
+        // Only update the dragged element during movement to reduce flickering
+        updateDraggedElementPositionFn(dragState.elementType, clampedX, clampedY, false);
     });
 }
 
@@ -207,8 +212,9 @@ export function handleDragEnd(event, updateDraggedElementPositionFn) {
     dragState.currentElement.classList.remove('dragging');
     delete dragState.currentElement.dataset.isBeingDragged;
     
-    // Restore text selection
+    // Restore text selection and cursor
     document.body.style.userSelect = '';
+    document.body.style.cursor = '';
     
     // Get the final element state for sync
     const syncCallback = updateDraggedElementPositionFn(dragState.elementType, null, null, true);
@@ -220,6 +226,12 @@ export function handleDragEnd(event, updateDraggedElementPositionFn) {
     
     // Clear cached container dimensions
     cachedContainerDimensions = null;
+    
+    // Clear slider update timeout
+    if (dragState.sliderUpdateTimeout) {
+        clearTimeout(dragState.sliderUpdateTimeout);
+        dragState.sliderUpdateTimeout = null;
+    }
     
     // Reset drag state
     dragState.isDragging = false;

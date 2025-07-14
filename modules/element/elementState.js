@@ -86,7 +86,7 @@ export function initializeElementStates(availableElements) {
             lockHorizontal: shouldLockHorizontal,
             lockVertical: false,
             isVisible: true,
-            isUppercase: false,
+            textTransform: 'none',
             lastUpdated: Date.now()
         };
         
@@ -122,7 +122,7 @@ export function updateElementState(elementType, updates, syncToSlides = true) {
             lockHorizontal: false,
             lockVertical: false,
             isVisible: true,
-            isUppercase: false,
+            textTransform: 'none',
             lastUpdated: Date.now()
         };
     }
@@ -187,8 +187,10 @@ export function validateStateValues(elementType, updates) {
         validated.isVisible = Boolean(updates.isVisible);
     }
     
-    if (updates.isUppercase !== undefined) {
-        validated.isUppercase = Boolean(updates.isUppercase);
+    if (updates.textTransform !== undefined) {
+        const validTransforms = ['none', 'uppercase', 'lowercase', 'capitalize'];
+        validated.textTransform = validTransforms.includes(updates.textTransform) ? 
+            updates.textTransform : 'none';
     }
     
     return validated;
@@ -313,7 +315,7 @@ export function initializeElementStatesWithLayout(availableElements, layoutPrese
             lockHorizontal: shouldLockHorizontal,
             lockVertical: false,
             isVisible: true,
-            isUppercase: false,
+            textTransform: 'none',
             lastUpdated: Date.now()
         };
         

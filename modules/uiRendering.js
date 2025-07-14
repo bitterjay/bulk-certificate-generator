@@ -94,7 +94,7 @@ import {
     initializeAlignmentEventListeners,
     initializeFontSizeEventListeners,
     handleFontSizeChange,
-    toggleElementUppercase,
+    cycleElementTextTransform,
     initializeThemeEventListeners,
     syncStateToSlides,
     getCurrentSelectedElement,
@@ -236,7 +236,7 @@ export {
     initializeAlignmentEventListeners,
     initializeFontSizeEventListeners,
     handleFontSizeChange,
-    toggleElementUppercase,
+    cycleElementTextTransform,
     
     // DOM utilities
     sanitizeClassName,

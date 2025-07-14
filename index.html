@@ -16,103 +16,107 @@
             <h1>USA Archery Certificate Generator</h1>
             <p>Generate personalized certificates for USA Archery events.</p>
         </header>
-        <h1>Certificate Generator</h1>
+        
+        <div class="main-layout">
+            <aside class="sidebar">
+                <section id="data-input">
+                    <h2>1. Paste Excel Data</h2>
+                    <button id="paste-from-clipboard" class="paste-button">Paste from Clipboard</button>
+                    <textarea id="paste-data" class="hidden-textarea" placeholder="Paste your Excel data here (tab-separated)" style="display: none;"></textarea>
+                    <button id="manual-paste-toggle" class="manual-paste-toggle">Manual Paste</button>
+                    <button id="use-sample-data" class="sample-data-button">Use Sample Data</button>
+                    <button id="show-table" style="display: none;">Show Table</button>
+                </section>
 
-        <section id="data-input">
-            <h2>1. Paste Excel Data</h2>
-            <button id="paste-from-clipboard" class="paste-button">Paste from Clipboard</button>
-            <textarea id="paste-data" class="hidden-textarea" placeholder="Paste your Excel data here (tab-separated)" style="display: none;"></textarea>
-            <button id="manual-paste-toggle" class="manual-paste-toggle">Manual Paste</button>
-            <button id="use-sample-data" class="sample-data-button">Use Sample Data</button>
-            <button id="show-table" style="display: none;">Show Table</button>
-        </section>
+                <section id="table-display">
+                    <div id="table-container"></div>
+                </section>
 
-        <section id="table-display">
-            <div id="table-container"></div>
-        </section>
-
-        <section id="layout-selection" style="display: none;">
-            <h2>2. Choose Layout Preset (Optional)</h2>
-            <div class="layout-controls">
-                        <select id="layout-selector" class="layout-dropdown">
-                            <!-- Options populated dynamically, default will be pre-selected -->
-                        </select>
-                <div id="layout-description" class="layout-description" style="display: none;"></div>
-                <div id="layout-columns" class="layout-expected-columns" style="display: none;"></div>
-            </div>
-        </section>
-
-        <section id="column-selection">
-            <h2>3. Select Columns to Include</h2>
-            <!-- Column selection UI will be dynamically generated here -->
-        </section>
-
-        <section id="image-upload">
-            <h2>4. Upload Certificate Background</h2>
-            <div class="file-upload-container">
-                <input type="file" id="png-upload" accept=".png,.jpg,.jpeg" style="display: none;">
-                <button type="button" id="upload-trigger" class="upload-button">
-                    📁 Choose Certificate Background
-                </button>
-                <div id="filename-display" class="filename-display" style="display: none;">
-                    <span class="filename-text">No file selected</span>
-                    <button type="button" id="clear-file" class="clear-file-button" title="Clear selection">×</button>
-                </div>
-            </div>
-            <button id="view-image-button" class="view-image-button" style="display: none;">
-                View Uploaded Image
-            </button>
-        </section>
-
-        <section id="date-selection">
-            <h2>5. Select Certificate Date</h2>
-            <div class="date-input-group">
-                <input type="date" id="certificate-date">
-                <button type="button" id="today-button" class="today-button">Today</button>
-            </div>
-        </section>
-
-        <section id="preview-controls">
-            <button id="generate-preview" disabled>Generate Preview</button>
-            <button id="generate-test-portrait-preview" class="test-button">Test Portrait Preview</button>
-            <button id="generate-test-landscape-preview" class="test-button">Test Landscape Preview</button>
-        </section>
-
-        <section id="preview-area">
-            <h2>Certificate Preview</h2>
-            <div id="preview-controls-container">
-                <!-- Left column: slider + element selection -->
-                <div class="preview-column">
-                    <div class="swiper" id="preview-slider">
-                        <div class="swiper-wrapper" id="preview-container">
-                            <!-- Slides will be dynamically generated here -->
-                        </div>
-                        <!-- Navigation -->
-                        <div class="swiper-pagination"></div>
-                        <div class="swiper-button-next"></div>
-                        <div class="swiper-button-prev"></div>
-                    </div>
-                    <div class="element-selection">
-                        <div id="element-buttons-container">
-                            <!-- Element selection buttons will be generated dynamically -->
+                <section id="image-upload">
+                    <h2>4. Upload Certificate Background</h2>
+                    <div class="file-upload-container">
+                        <input type="file" id="png-upload" accept=".png,.jpg,.jpeg" style="display: none;">
+                        <button type="button" id="upload-trigger" class="upload-button">
+                            📁 Choose Certificate Background
+                        </button>
+                        <div id="filename-display" class="filename-display" style="display: none;">
+                            <span class="filename-text">No file selected</span>
+                            <button type="button" id="clear-file" class="clear-file-button" title="Clear selection">×</button>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Right column: control panel -->
-                <div class="element-control-panel">
-                    <div id="control-widgets">
-                        <!-- Control widgets will appear here when element is selected -->
+                    <button id="view-image-button" class="view-image-button" style="display: none;">
+                        View Uploaded Image
+                    </button>
+                </section>
+
+                <section id="date-selection">
+                    <h2>5. Select Certificate Date</h2>
+                    <div class="date-input-group">
+                        <input type="date" id="certificate-date">
+                        <button type="button" id="today-button" class="today-button">Today</button>
                     </div>
-                </div>
-            </div>
-        </section>
+                </section>
 
-        <!-- Removed element-controls section as it's now integrated into preview-area -->
+                <section id="layout-selection" style="display: none;">
+                    <h2>2. Choose Layout Preset (Optional)</h2>
+                    <div class="layout-controls">
+                                <select id="layout-selector" class="layout-dropdown">
+                                    <!-- Options populated dynamically, default will be pre-selected -->
+                                </select>
+                        <div id="layout-description" class="layout-description" style="display: none;"></div>
+                        <div id="layout-columns" class="layout-expected-columns" style="display: none;"></div>
+                    </div>
+                </section>
+            </aside>
 
-        <section id="export-controls">
-            <button id="generate-pdf" disabled>Generate PDF</button>
-        </section>
+            <main class="main-content">
+
+                <section id="column-selection">
+                    <h2>3. Select Columns to Include</h2>
+                    <!-- Column selection UI will be dynamically generated here -->
+                </section>
+
+                <section id="preview-controls">
+                    <button id="generate-preview" disabled>Generate Preview</button>
+                    <button id="generate-test-portrait-preview" class="test-button">Test Portrait Preview</button>
+                    <button id="generate-test-landscape-preview" class="test-button">Test Landscape Preview</button>
+                </section>
+
+                <section id="preview-area">
+                    <h2>Certificate Preview</h2>
+                    <div id="preview-controls-container">
+                        <!-- Left column: slider + element selection -->
+                        <div class="preview-column">
+                            <div class="swiper" id="preview-slider">
+                                <div class="swiper-wrapper" id="preview-container">
+                                    <!-- Slides will be dynamically generated here -->
+                                </div>
+                                <!-- Navigation -->
+                                <div class="swiper-pagination"></div>
+                                <div class="swiper-button-next"></div>
+                                <div class="swiper-button-prev"></div>
+                            </div>
+                            <div class="element-selection">
+                                <div id="element-buttons-container">
+                                    <!-- Element selection buttons will be generated dynamically -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right column: control panel -->
+                        <div class="element-control-panel">
+                            <div id="control-widgets">
+                                <!-- Control widgets will appear here when element is selected -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="export-controls">
+                    <button id="generate-pdf" disabled>Generate PDF</button>
+                </section>
+            </main>
+        </div>
     </div>
 
     <!-- Image Lightbox -->

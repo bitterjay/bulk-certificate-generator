@@ -13,7 +13,7 @@
       "lockHorizontal": true,
       "lockVertical": false,
       "isVisible": true,
-      "isUppercase": true
+      "textTransform": "uppercase"
     },
     "concatenated-element": {
       "xPercent": 50,
@@ -25,7 +25,7 @@
       "lockHorizontal": true,
       "lockVertical": false,
       "isVisible": true,
-      "isUppercase": true
+      "textTransform": "uppercase"
     },
     "date-element": {
       "xPercent": 19.25,
@@ -37,7 +37,7 @@
       "lockHorizontal": false,
       "lockVertical": false,
       "isVisible": true,
-      "isUppercase": false
+      "textTransform": "none"
     },
     "placement-element": {
       "xPercent": 50,
@@ -49,7 +49,7 @@
       "lockHorizontal": true,
       "lockVertical": false,
       "isVisible": true,
-      "isUppercase": false
+      "textTransform": "none"
     },
     "club-element": {
       "xPercent": 50,
@@ -61,7 +61,7 @@
       "lockHorizontal": true,
       "lockVertical": false,
       "isVisible": true,
-      "isUppercase": false
+      "textTransform": "none"
     }
   },
   "columnConcatenation": [],

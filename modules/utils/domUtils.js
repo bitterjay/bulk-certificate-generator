@@ -200,7 +200,7 @@ export function createTextElementWithState(text, elementType, slideIndex = 0, co
         // Apply state-driven styling if available
         if (state) {
             element.style.fontSize = `${state.fontSize}px`;
-            element.style.textTransform = state.isUppercase ? 'uppercase' : 'none';
+            element.style.textTransform = state.textTransform || 'none';
             applyThemeToElement(element, state.theme, state.color);
             
             // Apply pipe color if this is a concatenated element
@@ -252,21 +252,18 @@ export function applyLockedElementStyling(element, state, containerDimensions, i
         centerElementManually(element);
         
     } else if (isVerticallyLocked && !isHorizontallyLocked) {
-        // Vertically locked: full height, centered vertically, positioned horizontally
-        element.style.width = 'auto';
-        element.style.height = '100%';
-        element.style.top = '0';
-        element.style.display = 'flex';
-        element.style.flexDirection = 'column';
-        element.style.justifyContent = 'center';
-        element.style.alignItems = 'flex-start';
+        // Vertically locked: use stored Y position, center horizontally, positioned at Y coordinate
+        element.style.width = '100%';
+        element.style.height = 'auto';
+        element.style.left = '0';
+        element.style.textAlign = 'center';
         
-        const pixelX = (containerDimensions.width * state.xPercent) / 100;
-        element.style.left = `${pixelX}px`;
+        const pixelY = (containerDimensions.height * state.yPercent) / 100;
+        element.style.top = `${pixelY}px`;
         
         // Store positioning data for drag functionality
-        element.dataset.centerX = pixelX;
-        element.dataset.centerY = containerDimensions.height / 2;
+        element.dataset.centerX = containerDimensions.width / 2;
+        element.dataset.centerY = pixelY;
         
         // Use manual centering after DOM is ready to avoid transforms
         centerElementManually(element);

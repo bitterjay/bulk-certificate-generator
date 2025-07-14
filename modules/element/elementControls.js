@@ -72,8 +72,8 @@ export function syncStateToSlides(elementType) {
             // Apply font size
             element.style.fontSize = `${state.fontSize}px`;
             
-            // Apply uppercase text transformation
-            element.style.textTransform = state.isUppercase ? 'uppercase' : 'none';
+            // Apply text transformation
+            element.style.textTransform = state.textTransform || 'none';
             
             // Apply theme color
             applyThemeToElement(element, state.theme, state.color);
@@ -181,10 +181,13 @@ function applyElementHighlighting(elementType) {
     elements.forEach(element => {
         element.classList.add('element-selected');
         
-        // Force recalculation to ensure proper positioning after selection
-        setTimeout(() => {
-            centerElementManually(element, true);
-        }, 10);
+        // Skip centering if element is being dragged to avoid conflicts
+        if (!element.dataset.isBeingDragged) {
+            // Force recalculation to ensure proper positioning after selection
+            setTimeout(() => {
+                centerElementManually(element, true);
+            }, 10);
+        }
     });
 }
 
@@ -282,8 +285,8 @@ export function showControlWidgets() {
                 
                 <div class="control-group">
                     <label>Text Transform:</label>
-                    <button id="uppercase-toggle" class="uppercase-toggle-button" title="Toggle Uppercase Text">
-                        <span class="uppercase-text">ABC</span>
+                    <button id="text-transform-toggle" class="text-transform-toggle-button" title="Cycle Text Transform">
+                        <span class="transform-text" id="transform-display">None</span>
                     </button>
                 </div>
             </div>
@@ -619,7 +622,7 @@ function centerElementVertically(elementType) {
 // Font size functions
 export function initializeFontSizeEventListeners() {
     const fontSizeSlider = document.getElementById('font-size-slider');
-    const uppercaseToggle = document.getElementById('uppercase-toggle');
+    const textTransformToggle = document.getElementById('text-transform-toggle');
     
     if (fontSizeSlider) {
         // Handle real-time slider movement (input event)
@@ -632,10 +635,10 @@ export function initializeFontSizeEventListeners() {
         });
     }
     
-    if (uppercaseToggle) {
-        uppercaseToggle.addEventListener('click', () => {
+    if (textTransformToggle) {
+        textTransformToggle.addEventListener('click', () => {
             if (currentSelectedElement) {
-                toggleElementUppercase(currentSelectedElement);
+                cycleElementTextTransform(currentSelectedElement);
             }
         });
     }
@@ -690,28 +693,50 @@ function updateFontSizeSlider(elementType) {
             fontSizeDisplay.textContent = `${state.fontSize}px`;
         }
         
-        // Update uppercase button state
-        updateUppercaseButtonState(elementType);
+        // Update text transform button state
+        updateTextTransformButtonState(elementType);
     }
 }
 
-// Toggle uppercase text transformation
-export function toggleElementUppercase(elementType) {
+// Cycle through text transformation options
+export function cycleElementTextTransform(elementType) {
     const state = getElementState(elementType);
     if (state) {
-        const newUppercaseState = !state.isUppercase;
-        updateElementState(elementType, { isUppercase: newUppercaseState });
-        updateUppercaseButtonState(elementType);
+        const transforms = ['none', 'uppercase', 'lowercase', 'capitalize'];
+        const currentTransform = state.textTransform || 'none';
+        const currentIndex = transforms.indexOf(currentTransform);
+        const nextIndex = (currentIndex + 1) % transforms.length;
+        const newTransform = transforms[nextIndex];
+        
+        updateElementState(elementType, { textTransform: newTransform });
+        updateTextTransformButtonState(elementType);
+        
+        // Apply changes to all certificate elements
+        syncStateToSlides(elementType);
     }
 }
 
-// Update uppercase button visual state
-function updateUppercaseButtonState(elementType) {
+// Update text transform button visual state
+function updateTextTransformButtonState(elementType) {
     const state = getElementState(elementType);
-    const uppercaseButton = document.getElementById('uppercase-toggle');
+    const textTransformButton = document.getElementById('text-transform-toggle');
+    const transformDisplay = document.getElementById('transform-display');
     
-    if (uppercaseButton && state) {
-        uppercaseButton.classList.toggle('active', state.isUppercase);
+    if (textTransformButton && transformDisplay && state) {
+        const currentTransform = state.textTransform || 'none';
+        
+        // Update button text based on current transform
+        const displayText = {
+            'none': 'None',
+            'uppercase': 'UPPER',
+            'lowercase': 'lower',
+            'capitalize': 'Title'
+        };
+        
+        transformDisplay.textContent = displayText[currentTransform] || 'None';
+        
+        // Add active class if not 'none'
+        textTransformButton.classList.toggle('active', currentTransform !== 'none');
     }
 }
 
@@ -819,17 +844,27 @@ export function updateDraggedElementPosition(elementType, xPercent, yPercent, sy
             draggedElement.dataset.centerY = pixelY;
             
             // Apply position directly during drag for smooth movement
-            draggedElement.style.left = `${pixelX}px`;
-            draggedElement.style.top = `${pixelY}px`;
+            // Use transform for better performance instead of left/top
+            const elementRect = draggedElement.getBoundingClientRect();
+            const offsetX = pixelX - elementRect.width / 2;
+            const offsetY = pixelY - elementRect.height / 2;
             
-            // Center the element around the new position
-            centerElementManually(draggedElement, true);
+            draggedElement.style.left = `${offsetX}px`;
+            draggedElement.style.top = `${offsetY}px`;
+            
+            // Don't call centerElementManually during drag to avoid conflicts
         }
     }
     
-    // Update slider values if controls are visible
+    // Update slider values if controls are visible (throttled)
     if (currentSelectedElement === elementType) {
-        updateSliderValues(elementType);
+        // Only update sliders periodically to avoid excessive DOM manipulation
+        if (!dragState.sliderUpdateTimeout) {
+            dragState.sliderUpdateTimeout = setTimeout(() => {
+                updateSliderValues(elementType);
+                dragState.sliderUpdateTimeout = null;
+            }, 100);
+        }
     }
 }
 

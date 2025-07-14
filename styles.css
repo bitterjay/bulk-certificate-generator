@@ -23,6 +23,29 @@ body {
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
+/* Main layout with sidebar */
+.main-layout {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.sidebar {
+    width: 400px;
+    min-width: 400px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.main-content {
+    flex: 1;
+    min-width: 0; /* Prevents flex item from overflowing */
+}
+
 h1, h2, h3, h4, h5, h6 {
     font-weight: 700;
 }
@@ -930,8 +953,10 @@ input[type="date"] {
     transition: all 0.2s ease;
 }
 /* Disable transitions during drag for performance */
-.certificate-preview div[id].dragging {
+.certificate-preview div[id].dragging,
+.certificate-preview div[id].dragging * {
     transition: none !important;
+    will-change: transform, left, top;
 }
 
 /* Disable transitions during slider updates for frictionless movement */
@@ -944,19 +969,19 @@ input[type="date"] {
     transition: none !important;
 }
 
-/* Dragging state - NO scale transforms to prevent jumping */
+/* Dragging state - optimized for smooth movement */
 .dragging {
     opacity: 0.8;
     z-index: 999;
-    /* border: 2px solid #007bff !important; */
     background-color: rgba(0, 123, 255, 0.1) !important;
+    transform: translate3d(0, 0, 0); /* Force GPU acceleration */
     /* Removed transform: scale() and box-shadow to prevent jumping */
 }
 
 /* Disable hover/active effects during drag to prevent jumping */
 .certificate-preview div[id].dragging:hover,
 .certificate-preview div[id].dragging:active {
-    transform: none !important;
+    transform: translate3d(0, 0, 0) !important;
     opacity: 0.8 !important;
 }
 
@@ -1386,8 +1411,8 @@ input[type="date"] {
     border: 1px solid #dee2e6;
 }
 
-/* Uppercase Toggle Button Styling */
-.uppercase-toggle-button {
+/* Text Transform Toggle Button Styling */
+.text-transform-toggle-button {
     background-color: #6c757d;
     color: white;
     border: 2px solid transparent;
@@ -1400,22 +1425,20 @@ input[type="date"] {
     min-width: 60px;
 }
 
-.uppercase-toggle-button:hover {
+.text-transform-toggle-button:hover {
     background-color: #5a6268;
 }
 
-.uppercase-toggle-button.active {
+.text-transform-toggle-button.active {
     background-color: #007bff;
     border-color: #0056b3;
     box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
 }
 
-.uppercase-toggle-button.active .uppercase-text {
-    text-transform: uppercase;
-}
-
-.uppercase-toggle-button:not(.active) .uppercase-text {
-    text-transform: lowercase;
+.transform-text {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: bold;
 }
 
 /* Navigation styles */
@@ -1440,6 +1463,23 @@ input[type="date"] {
     
     body {
         padding: 10px;
+    }
+    
+    /* Mobile sidebar layout */
+    .main-layout {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .sidebar {
+        width: 100%;
+        min-width: auto;
+        max-height: none;
+        order: 2; /* Move sidebar below main content on mobile */
+    }
+    
+    .main-content {
+        order: 1; /* Main content comes first on mobile */
     }
     
     .pasted-data-table {
