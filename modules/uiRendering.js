@@ -69,7 +69,6 @@ import {
     handleElementMouseDown,
     handleDragMove,
     handleDragEnd,
-    updateDraggedElementPosition,
     handleElementClick,
     handleDocumentClick,
     getElementTypeFromElement
@@ -99,7 +98,8 @@ import {
     initializeThemeEventListeners,
     syncStateToSlides,
     getCurrentSelectedElement,
-    isControlsVisible
+    isControlsVisible,
+    updateDraggedElementPosition
 } from './element/elementControls.js';
 
 // Import from preview generator module
@@ -146,16 +146,7 @@ function handleElementMouseDownWrapper(event) {
         event, 
         selectElement, 
         getElementState, 
-        (elementType, xPercent, yPercent) => {
-            updateDraggedElementPosition(
-                elementType, 
-                xPercent, 
-                yPercent, 
-                updateElementState, 
-                centerElementManually, 
-                domPercentToPixels
-            );
-        }
+        updateDraggedElementPosition
     );
 }
 
@@ -261,11 +252,11 @@ export {
     handleElementMouseDown,
     handleDragMove,
     handleDragEnd,
-    updateDraggedElementPosition,
     handleElementClick,
     handleDocumentClick,
     getElementTypeFromElement,
     addElementClickListeners,
+    updateDraggedElementPosition,
     
     // Layout system
     loadLayoutPresets,

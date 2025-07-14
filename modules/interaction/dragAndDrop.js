@@ -16,7 +16,9 @@ export let dragState = {
     initialElementX: 0, // Element's initial position
     initialElementY: 0, // Element's initial position
     animationFrameId: null, // For smooth updates
-    hasMoved: false // Track if the mouse has actually moved during drag
+    hasMoved: false, // Track if the mouse has actually moved during drag
+    mouseMoveHandler: null, // Store reference to mousemove handler
+    mouseUpHandler: null // Store reference to mouseup handler
 };
 
 // Get element type from DOM element
@@ -37,8 +39,11 @@ export function handleElementClick(event, dragStateRef) {
         event.stopPropagation();
         const elementType = getElementTypeFromElement(event.target);
         if (elementType) {
+            console.log('Element clicked (not dragged):', elementType);
             return elementType; // Return element type for selection
         }
+    } else {
+        console.log('Element was dragged, not clicked');
     }
     return null;
 }
@@ -52,6 +57,11 @@ export function handleElementMouseDown(
 ) {
     const elementType = getElementTypeFromElement(event.target);
     
+    if (!elementType) {
+        console.warn('No element type found for drag operation');
+        return;
+    }
+    
     // Select the element if it's not already selected
     if (elementType !== window.currentSelectedElement) {
         selectElement(elementType);
@@ -60,8 +70,13 @@ export function handleElementMouseDown(
     event.preventDefault();
     event.stopPropagation();
     
+    console.log('Starting drag operation for:', elementType);
+    
     const container = event.target.closest('.certificate-preview');
-    if (!container) return;
+    if (!container) {
+        console.warn('No certificate container found for drag operation');
+        return;
+    }
     
     const containerRect = container.getBoundingClientRect();
     const elementRect = event.target.getBoundingClientRect();
@@ -93,12 +108,19 @@ export function handleElementMouseDown(
     dragState.initialElementY = elementCenterY;
     dragState.hasMoved = false; // Reset movement tracking
     
-    // Add global event listeners
-    document.addEventListener('mousemove', (e) => handleDragMove(e, getElementState, updateDraggedElementPositionFn));
-    document.addEventListener('mouseup', (e) => handleDragEnd(e, updateDraggedElementPositionFn));
+    // Create bound event handlers and store references
+    dragState.mouseMoveHandler = (e) => handleDragMove(e, getElementState, updateDraggedElementPositionFn);
+    dragState.mouseUpHandler = (e) => handleDragEnd(e, updateDraggedElementPositionFn);
+    
+    // Add global event listeners with stored references
+    document.addEventListener('mousemove', dragState.mouseMoveHandler);
+    document.addEventListener('mouseup', dragState.mouseUpHandler);
     
     // Add dragging class and disable transitions
     dragState.currentElement.classList.add('dragging');
+    
+    // Add flag to prevent centering during drag
+    dragState.currentElement.dataset.isBeingDragged = 'true';
     
     // Prevent text selection during drag
     document.body.style.userSelect = 'none';
@@ -106,7 +128,9 @@ export function handleElementMouseDown(
 
 // Handle mouse move during drag
 export function handleDragMove(event, getElementState, updateDraggedElementPositionFn) {
-    if (!dragState.isDragging) return;
+    if (!dragState.isDragging || !dragState.currentElement) {
+        return;
+    }
     
     // Mark that we've moved
     dragState.hasMoved = true;
@@ -119,7 +143,10 @@ export function handleDragMove(event, getElementState, updateDraggedElementPosit
     // Use requestAnimationFrame for smooth updates
     dragState.animationFrameId = requestAnimationFrame(() => {
         const container = dragState.currentElement.closest('.certificate-preview');
-        if (!container) return;
+        if (!container) {
+            console.warn('Container not found during drag move');
+            return;
+        }
         
         // Use cached container dimensions for performance
         const containerRect = cachedContainerDimensions || container.getBoundingClientRect();
@@ -166,12 +193,19 @@ export function handleDragEnd(event, updateDraggedElementPositionFn) {
         dragState.animationFrameId = null;
     }
     
-    // Remove global event listeners
-    document.removeEventListener('mousemove', handleDragMove);
-    document.removeEventListener('mouseup', handleDragEnd);
+    // Remove global event listeners using stored references
+    if (dragState.mouseMoveHandler) {
+        document.removeEventListener('mousemove', dragState.mouseMoveHandler);
+        dragState.mouseMoveHandler = null;
+    }
+    if (dragState.mouseUpHandler) {
+        document.removeEventListener('mouseup', dragState.mouseUpHandler);
+        dragState.mouseUpHandler = null;
+    }
     
-    // Remove dragging class
+    // Remove dragging class and flag
     dragState.currentElement.classList.remove('dragging');
+    delete dragState.currentElement.dataset.isBeingDragged;
     
     // Restore text selection
     document.body.style.userSelect = '';
@@ -195,45 +229,11 @@ export function handleDragEnd(event, updateDraggedElementPositionFn) {
     dragState.initialOffsetY = 0;
     dragState.initialElementX = 0;
     dragState.initialElementY = 0;
+    dragState.hasMoved = false;
+    
+    console.log('Drag operation ended');
 }
 
-// Update the position of a dragged element
-export function updateDraggedElementPosition(
-    elementType, 
-    xPercent, 
-    yPercent, 
-    updateElementState,
-    centerElementManually,
-    percentToPixels,
-    syncToSlides = false
-) {
-    // Special case for the end of drag when we just want to get the sync function
-    if (xPercent === null && yPercent === null) {
-        return updateElementState(elementType, {}, syncToSlides);
-    }
-    
-    // Update state without syncing to all slides
-    updateElementState(elementType, { xPercent, yPercent }, false);
-    
-    // Update only the currently dragged element
-    const draggedElement = dragState.currentElement;
-    if (draggedElement) {
-        const container = draggedElement.closest('.certificate-preview');
-        if (container) {
-            const containerRect = cachedContainerDimensions || container.getBoundingClientRect();
-            const pixelX = percentToPixels(xPercent, containerRect.width);
-            const pixelY = percentToPixels(yPercent, containerRect.height);
-            
-            draggedElement.style.left = `${pixelX}px`;
-            draggedElement.style.top = `${pixelY}px`;
-            draggedElement.dataset.centerX = pixelX;
-            draggedElement.dataset.centerY = pixelY;
-            
-            // Center the element manually
-            centerElementManually(draggedElement);
-        }
-    }
-}
 
 // Handle document clicks for deselection
 export function handleDocumentClick(event, dragStateRef, currentSelectedElement, clearElementSelection) {

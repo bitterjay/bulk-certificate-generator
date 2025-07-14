@@ -185,18 +185,17 @@ export function createTextElementWithState(text, elementType, slideIndex = 0, co
     
     // If positions are available, use them
     if (positions) {
-        // Convert percentage positions to pixel values
-        const pixelX = (containerDimensions.width * positions.x) / 100;
-        const pixelY = (containerDimensions.height * positions.y) / 100;
+        // Apply enhanced centering based on lock state
+        const isHorizontallyLocked = state && state.lockHorizontal;
+        const isVerticallyLocked = state && state.lockVertical;
         
-        // Apply state-driven positioning
-        element.style.position = 'absolute';
-        element.style.left = `${pixelX}px`;
-        element.style.top = `${pixelY}px`;
-        
-        // Store positioning data
-        element.dataset.centerX = pixelX;
-        element.dataset.centerY = pixelY;
+        if (isHorizontallyLocked || isVerticallyLocked) {
+            // Use full-width/height approach for locked elements
+            applyLockedElementStyling(element, state, containerDimensions, isHorizontallyLocked, isVerticallyLocked);
+        } else {
+            // Use traditional absolute positioning for unlocked elements
+            applyUnlockedElementStyling(element, state, containerDimensions);
+        }
         
         // Apply state-driven styling if available
         if (state) {
@@ -220,16 +219,117 @@ export function createTextElementWithState(text, elementType, slideIndex = 0, co
         element.style.transform = 'translate(-50%, -50%)';
     }
     
-    // Center element manually with improved timing
-    centerElementManually(element);
-    
     return element;
 }
 
+// Helper function to apply styling for locked elements using full-width/height approach
+export function applyLockedElementStyling(element, state, containerDimensions, isHorizontallyLocked, isVerticallyLocked) {
+    element.style.position = 'absolute';
+    
+    // Reset any existing transforms and positioning
+    element.style.transform = '';
+    element.style.textAlign = '';
+    element.style.display = '';
+    element.style.flexDirection = '';
+    element.style.justifyContent = '';
+    element.style.alignItems = '';
+    
+    if (isHorizontallyLocked && !isVerticallyLocked) {
+        // Horizontally locked: full width, centered text, positioned vertically
+        element.style.width = '100%';
+        element.style.height = 'auto';
+        element.style.left = '0';
+        element.style.textAlign = 'center';
+        
+        const pixelY = (containerDimensions.height * state.yPercent) / 100;
+        element.style.top = `${pixelY}px`;
+        
+        // Store positioning data for drag functionality
+        element.dataset.centerX = containerDimensions.width / 2;
+        element.dataset.centerY = pixelY;
+        
+        // Use manual centering after DOM is ready to avoid transforms
+        centerElementManually(element);
+        
+    } else if (isVerticallyLocked && !isHorizontallyLocked) {
+        // Vertically locked: full height, centered vertically, positioned horizontally
+        element.style.width = 'auto';
+        element.style.height = '100%';
+        element.style.top = '0';
+        element.style.display = 'flex';
+        element.style.flexDirection = 'column';
+        element.style.justifyContent = 'center';
+        element.style.alignItems = 'flex-start';
+        
+        const pixelX = (containerDimensions.width * state.xPercent) / 100;
+        element.style.left = `${pixelX}px`;
+        
+        // Store positioning data for drag functionality
+        element.dataset.centerX = pixelX;
+        element.dataset.centerY = containerDimensions.height / 2;
+        
+        // Use manual centering after DOM is ready to avoid transforms
+        centerElementManually(element);
+        
+    } else if (isHorizontallyLocked && isVerticallyLocked) {
+        // Both locked: full width and height, centered in both directions
+        element.style.width = '100%';
+        element.style.height = '100%';
+        element.style.left = '0';
+        element.style.top = '0';
+        element.style.display = 'flex';
+        element.style.justifyContent = 'center';
+        element.style.alignItems = 'center';
+        element.style.transform = '';
+        
+        // Store positioning data for drag functionality
+        element.dataset.centerX = containerDimensions.width / 2;
+        element.dataset.centerY = containerDimensions.height / 2;
+    }
+}
+
+// Helper function to apply styling for unlocked elements using traditional positioning
+export function applyUnlockedElementStyling(element, state, containerDimensions) {
+    // Reset any lock-specific styling
+    element.style.width = 'auto';
+    element.style.height = 'auto';
+    element.style.textAlign = '';
+    element.style.display = '';
+    element.style.flexDirection = '';
+    element.style.justifyContent = '';
+    element.style.alignItems = '';
+    element.style.transform = '';
+    
+    const pixelX = (containerDimensions.width * state.xPercent) / 100;
+    const pixelY = (containerDimensions.height * state.yPercent) / 100;
+    
+    element.style.position = 'absolute';
+    element.style.left = `${pixelX}px`;
+    element.style.top = `${pixelY}px`;
+    
+    // Store positioning data
+    element.dataset.centerX = pixelX;
+    element.dataset.centerY = pixelY;
+    
+    // Use manual centering for unlocked elements
+    centerElementManually(element);
+}
+
 // Function to center element manually after it's added to DOM
-export function centerElementManually(element) {
+export function centerElementManually(element, forceRecalculation = false) {
+    // Only skip centering if element is being repositioned during drag (not initial selection)
+    // This allows proper centering during selection but prevents jumping during drag
+    if (!forceRecalculation && element.dataset.isBeingDragged === 'true') {
+        return;
+    }
+    
     // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(() => {
+        // Double-check the drag flag in case it changed during the frame delay
+        if (!forceRecalculation && element.dataset.isBeingDragged === 'true') {
+            return;
+        }
+        
         // Get the element's dimensions
         const rect = element.getBoundingClientRect();
         const elementWidth = rect.width;
@@ -238,7 +338,7 @@ export function centerElementManually(element) {
         // Validate that we have valid dimensions
         if (elementWidth === 0 || elementHeight === 0) {
             // Retry after a short delay if dimensions aren't available
-            setTimeout(() => centerElementManually(element), 50);
+            setTimeout(() => centerElementManually(element, forceRecalculation), 50);
             return;
         }
         

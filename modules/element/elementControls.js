@@ -14,7 +14,9 @@ import { getElementState, updateElementState } from './elementState.js';
 import { 
     getElementFriendlyName, 
     centerElementManually,
-    percentToPixels
+    percentToPixels,
+    applyLockedElementStyling,
+    applyUnlockedElementStyling
 } from '../utils/domUtils.js';
 import { 
     handleElementClick, 
@@ -50,14 +52,22 @@ export function syncStateToSlides(elementType) {
         const certificateContainer = element.closest('.certificate-preview');
         if (certificateContainer) {
             const containerRect = certificateContainer.getBoundingClientRect();
-            const pixelX = percentToPixels(state.xPercent, containerRect.width);
-            const pixelY = percentToPixels(state.yPercent, containerRect.height);
+            const containerDimensions = {
+                width: containerRect.width,
+                height: containerRect.height
+            };
             
-            // Apply position
-            element.style.left = `${pixelX}px`;
-            element.style.top = `${pixelY}px`;
-            element.dataset.centerX = pixelX;
-            element.dataset.centerY = pixelY;
+            // Apply enhanced positioning based on lock state
+            const isHorizontallyLocked = state.lockHorizontal;
+            const isVerticallyLocked = state.lockVertical;
+            
+            if (isHorizontallyLocked || isVerticallyLocked) {
+                // Use full-width/height approach for locked elements
+                applyLockedElementStyling(element, state, containerDimensions, isHorizontallyLocked, isVerticallyLocked);
+            } else {
+                // Use traditional absolute positioning for unlocked elements
+                applyUnlockedElementStyling(element, state, containerDimensions);
+            }
             
             // Apply font size
             element.style.fontSize = `${state.fontSize}px`;
@@ -79,9 +89,6 @@ export function syncStateToSlides(elementType) {
             
             // Apply visibility
             element.style.display = state.isVisible ? 'block' : 'none';
-            
-            // Center the element manually after positioning
-            centerElementManually(element);
         }
     });
 }
@@ -173,6 +180,11 @@ function applyElementHighlighting(elementType) {
     const elements = document.querySelectorAll(`[id^="${elementType}-"]`);
     elements.forEach(element => {
         element.classList.add('element-selected');
+        
+        // Force recalculation to ensure proper positioning after selection
+        setTimeout(() => {
+            centerElementManually(element, true);
+        }, 10);
     });
 }
 
@@ -419,7 +431,7 @@ export function handleSliderChange(axis, value) {
 
 // Optimized function to update only selected elements during slider movement
 function updateSelectedElementPosition(axis, value) {
-    const elements = document.querySelectorAll(`[id^="${currentSelectedElement}-"]`);
+    const elements = document.querySelectorAll(`[id^=\"${currentSelectedElement}-\"]`);
     
     elements.forEach(element => {
         // Add class to disable transitions for frictionless movement
@@ -429,6 +441,10 @@ function updateSelectedElementPosition(axis, value) {
         if (container) {
             const containerRect = container.getBoundingClientRect();
             const state = getElementState(currentSelectedElement);
+            const containerDimensions = {
+                width: containerRect.width,
+                height: containerRect.height
+            };
             
             let newX = state.xPercent;
             let newY = state.yPercent;
@@ -439,15 +455,20 @@ function updateSelectedElementPosition(axis, value) {
                 newY = value;
             }
             
-            const pixelX = percentToPixels(newX, containerRect.width);
-            const pixelY = percentToPixels(newY, containerRect.height);
+            // Create temporary state object for positioning
+            const tempState = { ...state, xPercent: newX, yPercent: newY };
             
-            element.style.left = `${pixelX}px`;
-            element.style.top = `${pixelY}px`;
-            element.dataset.centerX = pixelX;
-            element.dataset.centerY = pixelY;
+            // Apply enhanced positioning based on lock state
+            const isHorizontallyLocked = state.lockHorizontal;
+            const isVerticallyLocked = state.lockVertical;
             
-            centerElementManually(element);
+            if (isHorizontallyLocked || isVerticallyLocked) {
+                // Use full-width/height approach for locked elements
+                applyLockedElementStyling(element, tempState, containerDimensions, isHorizontallyLocked, isVerticallyLocked);
+            } else {
+                // Use traditional absolute positioning for unlocked elements
+                applyUnlockedElementStyling(element, tempState, containerDimensions);
+            }
         }
         
         // Remove the class after a short delay to re-enable transitions
@@ -516,6 +537,9 @@ export function toggleLockHorizontal(elementType) {
         }
         updateLockButtonStates(elementType);
         updateSliderValues(elementType); // To disable/enable slider
+        
+        // Refresh element positioning to apply new lock state
+        syncStateToSlides(elementType);
     }
 }
 
@@ -532,6 +556,9 @@ export function toggleLockVertical(elementType) {
         }
         updateLockButtonStates(elementType);
         updateSliderValues(elementType); // To disable/enable slider
+        
+        // Refresh element positioning to apply new lock state
+        syncStateToSlides(elementType);
     }
 }
 
@@ -759,41 +786,51 @@ export function addElementClickListeners() {
                 event, 
                 selectElement, 
                 getElementState,
-                (elementType, xPercent, yPercent, syncToSlides = false) => {
-                    // Create an optimized update function that will be passed to the drag handler
-                    return (elementType, xPercent, yPercent, syncToSlides = false) => {
-                        if (xPercent === null && yPercent === null) {
-                            return syncStateToSlides;
-                        }
-                        
-                        // Update state without syncing
-                        updateElementState(elementType, { xPercent, yPercent }, false);
-                        
-                        // Update the dragged element
-                        const draggedElement = dragState.currentElement;
-                        if (draggedElement) {
-                            const container = draggedElement.closest('.certificate-preview');
-                            if (container) {
-                                const containerRect = container.getBoundingClientRect();
-                                const pixelX = percentToPixels(xPercent, containerRect.width);
-                                const pixelY = percentToPixels(yPercent, containerRect.height);
-                                
-                                draggedElement.style.left = `${pixelX}px`;
-                                draggedElement.style.top = `${pixelY}px`;
-                                draggedElement.dataset.centerX = pixelX;
-                                draggedElement.dataset.centerY = pixelY;
-                                
-                                centerElementManually(draggedElement);
-                            }
-                        }
-                    };
-                }
+                updateDraggedElementPosition
             );
         });
     });
     
     // Add document click listener for click-outside-to-deselect
     addDocumentClickListener();
+}
+
+// Function to update dragged element position during drag operations
+export function updateDraggedElementPosition(elementType, xPercent, yPercent, syncToSlides = false) {
+    // Special case for the end of drag when we just want to get the sync function
+    if (xPercent === null && yPercent === null) {
+        return syncStateToSlides;
+    }
+    
+    // Update state without syncing to all slides initially
+    updateElementState(elementType, { xPercent, yPercent }, false);
+    
+    // Update only the currently dragged element for smooth real-time feedback
+    const draggedElement = dragState.currentElement;
+    if (draggedElement) {
+        const container = draggedElement.closest('.certificate-preview');
+        if (container) {
+            const containerRect = container.getBoundingClientRect();
+            const pixelX = percentToPixels(xPercent, containerRect.width);
+            const pixelY = percentToPixels(yPercent, containerRect.height);
+            
+            // Update the center data attributes
+            draggedElement.dataset.centerX = pixelX;
+            draggedElement.dataset.centerY = pixelY;
+            
+            // Apply position directly during drag for smooth movement
+            draggedElement.style.left = `${pixelX}px`;
+            draggedElement.style.top = `${pixelY}px`;
+            
+            // Center the element around the new position
+            centerElementManually(draggedElement, true);
+        }
+    }
+    
+    // Update slider values if controls are visible
+    if (currentSelectedElement === elementType) {
+        updateSliderValues(elementType);
+    }
 }
 
 // Function to add document-level click listener for deselection

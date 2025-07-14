@@ -482,6 +482,10 @@ input[type="date"] {
     transform: rotate(5deg);
 }
 
+.element {
+    text-align:center;
+}
+
 .concatenated-column {
     background-color: #28a745;
 }
@@ -846,11 +850,24 @@ input[type="date"] {
     color: #333;
     /* text-shadow: 2px 2px 4px rgba(255,255,255,0.8); */
     /* background: rgba(0, 0, 0, 0.5); */
-    padding: 10px 20px;
+    padding: 0;
     border-radius: 5px;
     white-space: nowrap;
     overflow: hidden;
     text-align: center;
+}
+
+/* Concatenated element wrapper for flex centering */
+.concatenated-wrapper {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Default size - will be adjusted by JavaScript */
+    width: 400px;
+    height: 100px;
+    /* Debug border - remove in production */
+    /* border: 1px dashed rgba(255, 0, 0, 0.3); */
 }
 
 .certificate-preview .concatenated {
@@ -859,11 +876,18 @@ input[type="date"] {
     color: #555;
     /* text-shadow: 1px 1px 2px rgba(255,255,255,0.8); */
     /* background: rgba(255,255,255,0.7); */
-    padding: 8px 16px;
+    padding: 0;
     border-radius: 5px;
     white-space: pre-wrap;
     overflow: hidden;
     text-align: center;
+    /* Remove absolute positioning - now handled by wrapper */
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    /* Allow text to wrap naturally */
+    word-wrap: break-word;
+    line-height: 1.2;
 }
 
 .certificate-preview .date {
@@ -871,7 +895,7 @@ input[type="date"] {
     font-weight: 600;
     color: #666;
     /* background: rgba(255,255,255,0.8); */
-    padding: 5px 10px;
+    padding: 0;
     border-radius: 5px;
     white-space: nowrap;
     overflow: hidden;
@@ -884,7 +908,7 @@ input[type="date"] {
     font-weight: 600;
     color: #444;
     /* background: rgba(255,255,255,0.7); */
-    padding: 6px 12px;
+    padding: 0;
     border-radius: 5px;
     /* text-shadow: 1px 1px 2px rgba(255,255,255,0.8); */
     white-space: nowrap;
@@ -897,8 +921,27 @@ input[type="date"] {
     /* border: 2px dashed #007bff !important; */
     background-color: rgba(0, 123, 255, .8) !important;
     color:white !important;
-    transition: all 0.3s ease;
+    /* Removed transition to prevent dimension changes during selection */
     cursor: move !important;
+}
+
+/* Add a separate class for smooth transitions when not being selected */
+.certificate-preview div[id]:not(.element-selected):not(.dragging):not(.slider-updating) {
+    transition: all 0.2s ease;
+}
+/* Disable transitions during drag for performance */
+.certificate-preview div[id].dragging {
+    transition: none !important;
+}
+
+/* Disable transitions during slider updates for frictionless movement */
+.certificate-preview div[id].slider-updating {
+    transition: none !important;
+}
+
+/* Disable transitions during selection to prevent jumping */
+.certificate-preview div[id].element-selected {
+    transition: none !important;
 }
 
 /* Dragging state - NO scale transforms to prevent jumping */
@@ -1244,7 +1287,7 @@ input[type="date"] {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-top: 10px;
+    /* margin-top: 10px; */
 }
 
 .selected-color-label {
@@ -1425,17 +1468,17 @@ input[type="date"] {
     
     .certificate-preview .name {
         font-size: 24px;
-        padding: 8px 16px;
+        padding: 0;
     }
     
     .certificate-preview .concatenated {
         font-size: 18px;
-        padding: 6px 12px;
+        padding: 0;
     }
     
     .certificate-preview .date {
         font-size: 14px;
-        padding: 4px 8px;
+        padding: 0;
     }
     
     button {
@@ -1479,17 +1522,17 @@ input[type="date"] {
     
     .certificate-preview .name {
         font-size: 20px;
-        padding: 6px 12px;
+        padding: 0;
     }
     
     .certificate-preview .concatenated {
         font-size: 16px;
-        padding: 4px 8px;
+        padding: 0;
     }
     
     .certificate-preview .date {
         font-size: 12px;
-        padding: 3px 6px;
+        padding: 0;
     }
     
     .element-button {
