@@ -38,13 +38,14 @@ export function handleElementClick(event, dragStateRef) {
     // Only handle click if we didn't drag
     if (!dragStateRef.hasMoved) {
         event.stopPropagation();
+        event.preventDefault(); // Prevent any default behavior
         const elementType = getElementTypeFromElement(event.target);
         if (elementType) {
             console.log('Element clicked (not dragged):', elementType);
             return elementType; // Return element type for selection
         }
     } else {
-        console.log('Element was dragged, not clicked');
+        console.log('Element was dragged, not clicked - no panel will show');
     }
     return null;
 }
@@ -255,16 +256,25 @@ export function handleDocumentClick(event, dragStateRef, currentSelectedElement,
     // Don't deselect if no element is currently selected
     if (!currentSelectedElement) return;
     
-    // Check if click is specifically on the currently selected element
-    const isClickOnSelectedElement = currentSelectedElement && 
-        event.target.closest(`[id^="${currentSelectedElement}-"]`);
+    // Check if click is specifically on any certificate element (not just selected one)
+    const isClickOnAnyElement = event.target.closest('.certificate-preview div[id]');
     
     // Check if click is on controls or buttons
-    const isClickOnControls = event.target.closest('.element-control-panel') || event.target.closest('.element-selection');
+    const isClickOnControls = event.target.closest('.element-control-panel') || 
+                             event.target.closest('.element-selection') ||
+                             event.target.closest('.panel-backdrop');
     const isClickOnButton = event.target.closest('button');
     
-    // Deselect if not clicking on selected element, controls, or buttons
-    if (!isClickOnSelectedElement && !isClickOnControls && !isClickOnButton) {
-        clearElementSelection();
+    // Check if click is on any interactive UI element
+    const isClickOnUI = event.target.closest('.swiper-button-next') ||
+                        event.target.closest('.swiper-button-prev') ||
+                        event.target.closest('.swiper-pagination');
+    
+    // Only deselect if clicking completely outside of elements, controls, buttons, or UI
+    if (!isClickOnAnyElement && !isClickOnControls && !isClickOnButton && !isClickOnUI) {
+        // Add a small delay to ensure element selection has time to complete
+        setTimeout(() => {
+            clearElementSelection();
+        }, 50);
     }
 }

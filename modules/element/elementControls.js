@@ -181,20 +181,21 @@ function applyElementHighlighting(elementType) {
     elements.forEach(element => {
         element.classList.add('element-selected');
         
-        // Skip centering if element is being dragged to avoid conflicts
-        if (!element.dataset.isBeingDragged) {
-            // Force recalculation to ensure proper positioning after selection
-            setTimeout(() => {
-                centerElementManually(element, true);
-            }, 10);
-        }
+        // Don't center elements when they're selected to avoid jumping
+        // Elements should stay in their current position
     });
 }
 
 // Function to show control widgets
 export function showControlWidgets() {
     const controlWidgets = document.getElementById('control-widgets');
-    if (controlWidgets && currentSelectedElement) {
+    const controlPanel = document.getElementById('element-control-panel');
+    const backdrop = document.getElementById('panel-backdrop');
+    
+    if (controlWidgets && controlPanel && currentSelectedElement) {
+        // Show the sliding panel
+        controlPanel.classList.add('visible');
+        backdrop.classList.add('visible');
         controlWidgets.classList.add('has-controls');
         
         // Get current state for display
@@ -331,6 +332,7 @@ export function showControlWidgets() {
         initializeLockEventListeners();
         initializeAlignmentEventListeners();
         initializeFontSizeEventListeners();
+        initializePanelEventListeners();
 
         // Update lock button states
         updateLockButtonStates(currentSelectedElement);
@@ -340,7 +342,13 @@ export function showControlWidgets() {
 // Function to hide control widgets
 export function hideControlWidgets() {
     const controlWidgets = document.getElementById('control-widgets');
-    if (controlWidgets) {
+    const controlPanel = document.getElementById('element-control-panel');
+    const backdrop = document.getElementById('panel-backdrop');
+    
+    if (controlWidgets && controlPanel) {
+        // Hide the sliding panel
+        controlPanel.classList.remove('visible');
+        backdrop.classList.remove('visible');
         controlWidgets.classList.remove('has-controls');
         controlWidgets.innerHTML = 'Select an element to edit its position and styling.';
     }
@@ -355,6 +363,9 @@ export function showElementControls() {
     
     // Generate element buttons
     generateElementButtons();
+    
+    // Ensure panel is hidden initially
+    hideControlWidgets();
 }
 
 // Function to hide element controls panel
@@ -800,9 +811,17 @@ export function addElementClickListeners() {
     const allElements = document.querySelectorAll('.certificate-preview div[id]');
     allElements.forEach(element => {
         element.addEventListener('click', (event) => {
+            event.stopPropagation(); // Prevent event from bubbling to document
+            
+            // Only proceed with selection if this was a true click (no drag movement)
             const elementType = handleElementClick(event, dragState);
             if (elementType) {
+                console.log('Pure click detected - showing panel for:', elementType);
                 selectElement(elementType);
+            } else if (dragState.hasMoved) {
+                console.log('Drag detected - panel will not show');
+                // Reset drag state for next interaction
+                dragState.hasMoved = false;
             }
         });
         
@@ -868,6 +887,26 @@ export function updateDraggedElementPosition(elementType, xPercent, yPercent, sy
     }
 }
 
+// Function to initialize panel event listeners
+function initializePanelEventListeners() {
+    const closeButton = document.getElementById('close-panel-button');
+    const backdrop = document.getElementById('panel-backdrop');
+    
+    if (closeButton) {
+        closeButton.addEventListener('click', (event) => {
+            event.stopPropagation();
+            clearElementSelection();
+        });
+    }
+    
+    if (backdrop) {
+        backdrop.addEventListener('click', (event) => {
+            event.stopPropagation();
+            clearElementSelection();
+        });
+    }
+}
+
 // Function to add document-level click listener for deselection
 export function addDocumentClickListener() {
     // Remove existing listener if present to prevent duplicates
@@ -877,10 +916,13 @@ export function addDocumentClickListener() {
 
 // Wrapper function to provide the necessary dependencies to handleDocumentClick
 function handleDocumentClickWrapped(event) {
-    handleDocumentClick(
-        event, 
-        dragState, 
-        currentSelectedElement, 
-        clearElementSelection
-    );
+    // Add a small delay to prevent immediate deselection when selecting an element
+    requestAnimationFrame(() => {
+        handleDocumentClick(
+            event, 
+            dragState, 
+            currentSelectedElement, 
+            clearElementSelection
+        );
+    });
 }

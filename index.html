@@ -67,25 +67,30 @@
                         <div id="layout-columns" class="layout-expected-columns" style="display: none;"></div>
                     </div>
                 </section>
-            </aside>
-
-            <main class="main-content">
-
-                <section id="column-selection">
-                    <h2>3. Select Columns to Include</h2>
-                    <!-- Column selection UI will be dynamically generated here -->
-                </section>
 
                 <section id="preview-controls">
+                    <h2>6. Generate Preview</h2>
                     <button id="generate-preview" disabled>Generate Preview</button>
                     <button id="generate-test-portrait-preview" class="test-button">Test Portrait Preview</button>
                     <button id="generate-test-landscape-preview" class="test-button">Test Landscape Preview</button>
                 </section>
 
+                <section id="export-controls">
+                    <h2>7. Generate Certificates</h2>
+                    <button id="generate-pdf" disabled>Generate PDF</button>
+                </section>
+            </aside>
+
+            <main class="main-content">
+
+                <section id="column-selection">
+                    <!-- Column selection UI will be dynamically generated here -->
+                </section>
+
                 <section id="preview-area">
                     <h2>Certificate Preview</h2>
                     <div id="preview-controls-container">
-                        <!-- Left column: slider + element selection -->
+                        <!-- Preview slider and element selection -->
                         <div class="preview-column">
                             <div class="swiper" id="preview-slider">
                                 <div class="swiper-wrapper" id="preview-container">
@@ -102,19 +107,22 @@
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Right column: control panel -->
-                        <div class="element-control-panel">
-                            <div id="control-widgets">
-                                <!-- Control widgets will appear here when element is selected -->
-                            </div>
-                        </div>
                     </div>
                 </section>
 
-                <section id="export-controls">
-                    <button id="generate-pdf" disabled>Generate PDF</button>
-                </section>
+                <!-- Sliding Element Control Panel -->
+                <div id="element-control-panel" class="element-control-panel">
+                    <div class="panel-header">
+                        <h3>Element Editor</h3>
+                        <button id="close-panel-button" class="close-panel-button" aria-label="Close Panel">&times;</button>
+                    </div>
+                    <div id="control-widgets">
+                        <!-- Control widgets will appear here when element is selected -->
+                    </div>
+                </div>
+
+                <!-- Panel Backdrop -->
+                <div id="panel-backdrop" class="panel-backdrop"></div>
             </main>
         </div>
     </div>
