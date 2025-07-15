@@ -25,6 +25,10 @@ body {
 }
 
 #use-sample-data, .test-button {
+    /* display:none; */
+}
+
+.test-button {
     display:none;
 }
 
@@ -783,6 +787,8 @@ input[type="date"] {
     font-size: 14px;
     font-weight: 500;
     border: 1px solid #bbdefb;
+    width:100%;
+    text-align:center;
 }
 
 /* Preview area styles */
@@ -1127,7 +1133,7 @@ input[type="date"] {
     color: #6c757d;
     font-style: italic;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* grid-template-columns: 1fr 1fr; */
     gap: 12px;
     flex: 1;
     overflow-y: auto;
@@ -1249,7 +1255,7 @@ input[type="date"] {
     gap: 20px;
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    /* grid-template-columns: 1fr 1fr 1fr; */
     gap: 20px;
 }
 
